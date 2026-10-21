@@ -1,0 +1,100 @@
+.vitals-section { margin-top: 16px; }
+.vitals-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 0 2px 11px; }
+.vitals-heading h2 { margin: 0; color: #1e3049; font: 700 15px Manrope, sans-serif; letter-spacing: -.25px; }
+.vitals-heading p { margin-top: 4px; color: #8794a6; font-size: 10px; }
+.vitals-live { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px solid #e3eeeb; border-radius: 20px; background: #f8fcfa; color: #6d8b81; font-size: 9px; white-space: nowrap; }
+.vitals-live i { width: 6px; height: 6px; border-radius: 50%; background: #37b698; animation: live-beat 1.8s ease-in-out infinite; }
+.vitals-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.panel-tools { display: flex; align-items: center; gap: 13px; }
+.patient-filter select { max-width: 170px; }
+.vital-card {
+  position: relative;
+  min-width: 0;
+  min-height: 176px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 19px 22px;
+  border: 1px solid #e8e9ef;
+  border-radius: 12px;
+  color: #20334d;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 4px 16px #233c5508;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+  animation: rise-in .55s both ease-out;
+}
+.heart-card { background: linear-gradient(118deg, #fff 28%, #fff5f6); animation-delay: .12s; }
+.temperature-card { background: linear-gradient(118deg, #fff 28%, #eff9fa); animation-delay: .19s; }
+.rmssd-card { background: linear-gradient(118deg, #fff 28%, #f1f2ff); animation-delay: .26s; }
+.vital-card::before { position: absolute; width: 170px; height: 170px; right: 27px; top: 50%; border-radius: 50%; content: ""; transform: translate(35%, -50%); background: #ffeff1; opacity: .72; transition: transform .35s ease; }
+.temperature-card::before { background: #e5f5f5; }
+.rmssd-card::before { background: #e8eaff; }
+.vital-card:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 12px 25px #233c5512; }
+.vital-card:hover:not(:disabled)::before { transform: translate(28%, -50%) scale(1.12); }
+.vital-card:focus-visible { outline: 3px solid #168f9166; outline-offset: 3px; }
+.vital-card.selected { border-color: #55bdb1; box-shadow: 0 0 0 3px #168f911b, 0 8px 22px #233c550d; }
+.vital-card:disabled { cursor: default; opacity: .82; }
+.vital-copy { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; }
+.vital-label { display: inline-flex; align-items: center; gap: 7px; color: #768399; font-size: 9px; font-weight: 700; letter-spacing: .9px; }
+.vital-label i { width: 7px; height: 7px; border-radius: 50%; background: #ed7180; }
+.temperature-card .vital-label i { background: #21a5a3; }
+.rmssd-card .vital-label i { background: #7768df; }
+.vital-reading { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; }
+.vital-reading strong { color: #23364f; font: 700 36px/1 Manrope, sans-serif; letter-spacing: -1.2px; font-variant-numeric: tabular-nums; }
+.vital-reading small { color: #718197; font-size: 13px; font-weight: 600; }
+.vital-time { margin-top: 7px; color: #97a2b1; font-size: 9px; }
+.vital-action { margin-top: 14px; color: #c35c6a; font-size: 10px; font-weight: 700; transition: color .18s ease; }
+.temperature-card .vital-action { color: #148b8d; }
+.rmssd-card .vital-action { color: #6658c9; }
+.vital-card:hover .vital-action { color: #20334d; }
+.vital-action b { padding-left: 4px; font-size: 13px; }
+.vital-visual { position: relative; z-index: 1; width: 125px; height: 125px; display: grid; flex: 0 0 125px; place-items: center; }
+.vital-visual svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.heart-glow { fill: #ffd9de; opacity: .76; animation: heart-glow 1.35s ease-out infinite; transform-origin: center; }
+.heart-shape { fill: #ed7180; filter: drop-shadow(0 6px 9px #dc52634a); animation: heart-beat 1.35s ease-in-out infinite; transform-origin: 60px 60px; }
+.heart-ecg { fill: none; stroke: #fff; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 58; stroke-dashoffset: 58; animation: ecg-draw 1.35s .25s ease-in-out infinite; }
+.thermometer-glass { fill: #fff; stroke: #b7dcde; stroke-width: 4; }
+.thermometer-track { fill: #e0f0f0; }
+.temperature-visual svg { animation: thermometer-float 3.2s ease-in-out infinite; transform-origin: center; }
+.thermometer-fill { fill: #ee7880; filter: drop-shadow(0 1px 3px #e4697350); transition: y .8s cubic-bezier(.2,.75,.25,1), height .8s cubic-bezier(.2,.75,.25,1); animation: mercury-glow 2.6s ease-in-out infinite; }
+.thermometer-bulb { fill: #ee7880; stroke: #fff; stroke-width: 3; filter: drop-shadow(0 4px 7px #e4697350); animation: bulb-glow 2s ease-in-out infinite; }
+.thermometer-tick { fill: none; stroke: #98bfc1; stroke-width: 2; stroke-linecap: round; }
+.rmssd-orbit { fill: #e5e8ff; opacity: .72; animation: rmssd-breathe 2.4s ease-in-out infinite; transform-origin: center; }
+.rmssd-ring { fill: #f7f7ff; stroke: #b9b3f2; stroke-width: 2; stroke-dasharray: 7 5; animation: rmssd-rotate 18s linear infinite; transform-origin: center; }
+.rmssd-wave { fill: none; stroke: #7566db; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 112; stroke-dashoffset: 112; animation: rmssd-signal 2.1s ease-in-out infinite; }
+.rmssd-point { fill: #7566db; filter: drop-shadow(0 2px 4px #7566db66); animation: rmssd-point 2.1s ease-in-out infinite; }
+@keyframes heart-beat { 0%, 15%, 32%, 100% { transform: scale(1); } 7%, 23% { transform: scale(1.09); } }
+@keyframes heart-glow { 0% { opacity: .7; transform: scale(.8); } 65%, 100% { opacity: 0; transform: scale(1.14); } }
+@keyframes ecg-draw { 0%, 12% { stroke-dashoffset: 58; opacity: .35; } 45%, 80% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: -58; opacity: .4; } }
+@keyframes bulb-glow { 0%, 100% { filter: drop-shadow(0 4px 7px #e4697335); } 50% { filter: drop-shadow(0 4px 11px #e4697370); } }
+@keyframes thermometer-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes mercury-glow { 0%, 100% { opacity: .88; } 50% { opacity: 1; } }
+@keyframes rmssd-breathe { 0%, 100% { opacity: .45; transform: scale(.93); } 50% { opacity: .9; transform: scale(1.06); } }
+@keyframes rmssd-rotate { to { transform: rotate(360deg); } }
+@keyframes rmssd-signal { 0%, 12% { stroke-dashoffset: 112; opacity: .4; } 60%, 82% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: -112; opacity: .4; } }
+@keyframes rmssd-point { 0%, 55% { opacity: .35; transform: scale(.75); } 75%, 100% { opacity: 1; transform: scale(1.25); } }
+@media (max-width: 1050px) {
+  .vitals-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .vitals-grid { grid-template-columns: 1fr; gap: 10px; }
+  .vital-card { min-height: 156px; padding: 16px 19px; }
+  .vital-visual { width: 112px; height: 112px; flex-basis: 112px; }
+  .panel-tools { gap: 7px; }
+  .patient-filter select { max-width: 145px; }
+}
+@media (max-width: 420px) {
+  .vitals-heading { align-items: flex-start; flex-direction: column; }
+  .vitals-live { align-self: flex-start; }
+  .vital-card { padding: 15px; }
+  .vital-visual { width: 92px; height: 104px; flex-basis: 92px; }
+  .vital-reading strong { font-size: 31px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-glow, .heart-shape, .heart-ecg, .temperature-visual svg, .thermometer-fill, .thermometer-bulb, .rmssd-orbit, .rmssd-ring, .rmssd-wave, .rmssd-point { animation: none !important; }
+  .thermometer-fill { transition: none !important; }
+}

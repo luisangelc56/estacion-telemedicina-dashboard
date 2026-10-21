@@ -1,0 +1,7 @@
+node_modules/
+secrets/
+.env
+.env.*
+!.env.example
+config.js
+*service-account*.json
