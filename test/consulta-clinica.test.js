@@ -34,13 +34,16 @@ test("después de un 401 solo una acción manual vuelve a consultar los datos cl
   assert.equal(debeConsultarDatosClinicos(true, true), true);
 });
 
-test("los informes de ejemplo no consultan pacientes ni mediciones y el panel no incluye la clave", () => {
+test("los informes de ejemplo siguen usando su ruta y el panel no incluye la clave", () => {
   const informes = fs.readFileSync(path.join(RAIZ, "informes-demo.js"), "utf8");
   const panel = fs.readFileSync(path.join(RAIZ, "dashboard.js"), "utf8");
   const html = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8");
   assert.equal(informes.includes("/api/pacientes"), false);
-  assert.equal(informes.includes("/api/mediciones"), false);
   assert.match(informes, /\/api\/demo\/informes\//);
+  assert.match(informes, /rutaClinica\(`\/api\/mediciones\?paciente_id=/);
+  assert.equal(informes.includes("DASHBOARD_API_KEY"), false);
+  assert.equal(informes.includes("GROQ_API_KEY"), false);
+  assert.equal(informes.includes("Authorization"), false);
   assert.equal(panel.includes("DASHBOARD_API_KEY"), false);
   assert.equal(panel.includes("Authorization"), false);
   assert.equal(panel.includes("Bearer"), false);

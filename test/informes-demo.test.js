@@ -60,3 +60,78 @@ test("traduce los errores del proveedor sin repetir mensajes sensibles", () => {
   assert.equal(fallo.mensaje.includes("gsk_secreto"), false);
   assert.equal(fallo.mensaje.includes("esta máquina"), false);
 });
+
+test("combina ejemplos y pacientes registrados sin repetir identificadores", () => {
+  const { combinarPacientes, conservarSeleccion, esEjemplo } = require("../informes-demo.js");
+  const lista = combinarPacientes([
+    { id: 4, nombre: "Ana", apellido: "López" },
+    { id: "4", nombre: "Repetido" },
+    { id: "PAC-DEMO-01", nombre: "No debe duplicar el ejemplo" },
+    { id: "0", nombre: "Inválido" },
+    { id: "12", nombre: "Luis" }
+  ]);
+  assert.deepEqual(lista.map((item) => item.id), ["PAC-DEMO-01", "PAC-DEMO-02", "4", "12"]);
+  assert.equal(lista[2].nombre, "Ana López");
+  assert.equal(lista[2].origen, "registrado");
+  assert.equal(conservarSeleccion("12", lista), "12");
+  assert.equal(conservarSeleccion("99", lista), "PAC-DEMO-01");
+  assert.equal(esEjemplo("PAC-DEMO-01"), true);
+  assert.equal(esEjemplo("12"), false);
+});
+
+test("distingue un paciente sin mediciones de un error al consultarlas", async () => {
+  require("../consulta-clinica.js");
+  const { consultarLecturas, mensajeConsulta, MENSAJE_SIN_MEDICIONES } = require("../informes-demo.js");
+  const vacio = await consultarLecturas("8", async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, mediciones: [] })
+  }));
+  assert.equal(vacio.estado, "vacio");
+  assert.equal(MENSAJE_SIN_MEDICIONES.includes("todavía no tiene mediciones"), true);
+
+  const ajenas = await consultarLecturas("8", async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, mediciones: [{ paciente_id: 9, valor: 70 }] })
+  }));
+  assert.equal(ajenas.estado, "vacio");
+
+  const propias = await consultarLecturas("8", async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true, mediciones: [{ paciente_id: "8", valor: 70 }, { paciente_id: 3, valor: 36 }] })
+  }));
+  assert.equal(propias.estado, "disponible");
+  assert.equal(propias.total, 1);
+
+  const caida = await consultarLecturas("8", async () => {
+    throw new TypeError("Failed to fetch");
+  });
+  assert.equal(caida.estado, "error");
+  assert.equal(caida.codigo, "RED");
+  assert.equal(mensajeConsulta(caida).includes("todavía no tiene mediciones"), false);
+
+  const servidor = await consultarLecturas("8", async () => ({
+    ok: false,
+    status: 500,
+    json: async () => ({ ok: false, codigo: "ERROR_INTERNO" })
+  }));
+  assert.equal(servidor.estado, "error");
+  assert.equal(servidor.http, 500);
+  assert.match(mensajeConsulta(servidor), /error del servicio/);
+  assert.equal(mensajeConsulta({ codigo: "TIEMPO_AGOTADO", http: 504 }).includes("tardó demasiado"), true);
+  assert.match(mensajeConsulta({ codigo: "NO_AUTORIZADO", http: 401 }), /autorización/);
+});
+
+test("traduce 401, 500 y 502 del informe sin tratarlos como falta de datos", () => {
+  const { interpretarFallo, MENSAJE_SIN_MEDICIONES } = require("../informes-demo.js");
+  for (const caso of [[401, "NO_AUTORIZADO"], [500, "ERROR_INTERNO"], [502, "RESPUESTA_INVALIDA"]]) {
+    const fallo = interpretarFallo(caso[0], caso[1]);
+    assert.equal(fallo.reintentar, true);
+    assert.equal(fallo.mensaje.includes(MENSAJE_SIN_MEDICIONES), false);
+    assert.equal(fallo.fase === "sin-datos", false);
+  }
+  assert.equal(interpretarFallo(401, "NO_AUTORIZADO").fase, "denegado");
+  assert.equal(interpretarFallo(502, "RESPUESTA_INVALIDA").fase, "error");
+});

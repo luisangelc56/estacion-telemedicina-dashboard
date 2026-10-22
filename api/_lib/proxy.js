@@ -36,14 +36,23 @@ function construirDestino(peticion) {
   const recurso = peticion.recurso;
   const method = peticion.method;
   const id = peticion.id;
-  if (recurso !== "pacientes" && recurso !== "mediciones") {
+  if (recurso !== "pacientes" && recurso !== "mediciones" && recurso !== "informes") {
     return { error: { status: 404, codigo: "RUTA_NO_PERMITIDA", mensaje: "Esa consulta no está permitida." } };
   }
   const claves = Array.isArray(peticion.claves) ? peticion.claves : [];
+  const detalle = id !== undefined && id !== null && id !== "";
+  if (recurso === "informes") {
+    if (method !== "GET" || !detalle || !idValido(id)) {
+      return { error: { status: method === "GET" ? 400 : 404, codigo: method === "GET" ? "SOLICITUD_INVALIDA" : "RUTA_NO_PERMITIDA", mensaje: method === "GET" ? "El identificador del paciente no es válido." : "Esa consulta no está permitida." } };
+    }
+    if (claves.some((clave) => clave !== "recurso" && clave !== "id")) {
+      return { error: { status: 400, codigo: "SOLICITUD_INVALIDA", mensaje: "La consulta incluye parámetros no permitidos." } };
+    }
+    return { destino: new URL(`${base}/api/informes/${id}`) };
+  }
   if (claves.some((clave) => clave !== "recurso" && clave !== "id" && !CONSULTAS.has(clave))) {
     return { error: { status: 400, codigo: "SOLICITUD_INVALIDA", mensaje: "La consulta incluye parámetros no permitidos." } };
   }
-  const detalle = id !== undefined && id !== null && id !== "";
   if (recurso === "mediciones") {
     if (method !== "GET" || detalle) {
       return { error: { status: 404, codigo: "RUTA_NO_PERMITIDA", mensaje: "Esa consulta no está permitida." } };
@@ -108,13 +117,14 @@ async function consultarClinico(peticion) {
     cuerpo = JSON.stringify(peticion.body && typeof peticion.body === "object" ? peticion.body : {});
   }
   let respuesta;
+  const tiempoMs = peticion.recurso === "informes" ? 36000 : peticion.tiempoMs || 12000;
   try {
     respuesta = await fetchImpl(construido.destino, {
       method,
       headers: encabezados,
       body: cuerpo,
       redirect: "manual",
-      signal: AbortSignal.timeout(peticion.tiempoMs || 12000)
+      signal: AbortSignal.timeout(tiempoMs)
     });
   } catch {
     return { status: 502, body: { ok: false, codigo: "CONEXION_FALLIDA", mensaje: "No se pudo consultar el servicio clínico." } };

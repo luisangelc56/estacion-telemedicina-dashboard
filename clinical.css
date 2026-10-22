@@ -415,7 +415,10 @@ body.clinical .informes-controls { align-items: end; gap: 10px; }
 body.clinical .informes-controls label { color: var(--ink-soft); font-size: 12px; font-weight: 600; }
 body.clinical .informes-status { color: var(--ink-soft); font-size: 14px; }
 body.clinical .informes-status[data-fase="error"],
-body.clinical .informes-status[data-fase="denegado"] { color: var(--danger); }
+body.clinical .informes-status[data-fase="api"],
+body.clinical .informes-status[data-fase="denegado"],
+body.clinical .informes-status[data-fase="limite"],
+body.clinical .informes-status[data-fase="insuficiente"] { color: var(--danger); }
 body.clinical .informes-dato {
   border: 1px solid var(--line);
   border-radius: 10px;

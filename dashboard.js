@@ -102,6 +102,10 @@ function antiguedadLectura(valor) {
   const desactualizada = diferencia > 15 * 60_000;
   return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "sin actualizar" : "reciente"}` };
 }
+function notificarPacientesInforme() {
+  const recibir = window.TELEMEDICINA_INFORMES && window.TELEMEDICINA_INFORMES.recibirPacientes;
+  if (typeof recibir === "function") recibir(sesionActiva ? pacientes : []);
+}
 function escribirPastilla(texto, restringido) {
   const etiqueta = $("live-label");
   if (etiqueta) etiqueta.textContent = texto;
@@ -149,6 +153,7 @@ function presentarSinSesion() {
   $("chart-empty-message").textContent = "Inicia sesión para consultar las lecturas.";
   $("chart-show-all").hidden = true;
   $("updated-at").textContent = "Esperando acceso del equipo";
+  notificarPacientesInforme();
 }
 function mostrarFalloDeCarga(error) {
   const clasificacion = window.TELEMEDICINA_CONSULTA.clasificarFalloClinico(error);
@@ -219,6 +224,7 @@ async function cargar(opciones = {}) {
       : [[], []];
     consultaClinicaBloqueada = false;
     sesionActiva = true;
+    notificarPacientesInforme();
     ocultarAcceso();
     $("error-banner").hidden = true;
     $("error-banner").classList.remove("is-restricted");
@@ -681,6 +687,7 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
     if (!resultado.paciente?.id) throw new Error("No se pudieron guardar los cambios. Inténtalo nuevamente.");
     pacienteDetalleActual = resultado.paciente;
     pacientes = pacientes.map((paciente) => String(paciente.id) === String(id) ? resultado.paciente : paciente);
+    notificarPacientesInforme();
     dibujar();
     dibujarDetallePaciente(resultado.paciente, lecturasDetalleActuales);
     establecerModoEdicionPaciente(false);
@@ -974,6 +981,7 @@ $("logout-button").addEventListener("click", async () => {
   consultaClinicaBloqueada = true;
   mediciones = [];
   pacientes = [];
+  notificarPacientesInforme();
   pacienteActual = "";
   dibujar();
   mostrarAcceso("");

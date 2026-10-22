@@ -55,11 +55,12 @@
     const segmentos = url.pathname.split("/").filter(Boolean);
     if (segmentos.length < 2 || segmentos.length > 3 || segmentos[0] !== "api") return null;
     const recurso = segmentos[1];
-    if (recurso !== "pacientes" && recurso !== "mediciones") return null;
+    if (recurso !== "pacientes" && recurso !== "mediciones" && recurso !== "informes") return null;
+    if (recurso === "informes" && (segmentos.length !== 3 || [...url.searchParams].length > 0)) return null;
     const params = new URLSearchParams();
     params.set("recurso", recurso);
     if (segmentos[2]) {
-      if (recurso !== "pacientes") return null;
+      if (recurso === "mediciones") return null;
       params.set("id", segmentos[2]);
     }
     for (const [clave, valor] of url.searchParams) {

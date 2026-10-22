@@ -170,6 +170,25 @@ test("el registro reenvía el paciente autorizado y rechaza rutas ajenas", async
   assert.equal(dispositivo.status, 404);
   assert.equal(salio, false);
   assert.equal(construirDestino({ method: "GET", recurso: "mediciones", periodo: "7d", base: ENV.BACKEND_API_BASE }).destino.href, "https://backend-de-prueba.example/api/mediciones?periodo=7d");
+  assert.equal(construirDestino({ method: "GET", recurso: "informes", id: "15", base: ENV.BACKEND_API_BASE }).destino.href, "https://backend-de-prueba.example/api/informes/15");
+  const informe = await consultarClinico({
+    method: "GET",
+    recurso: "informes",
+    id: "15",
+    claves: ["recurso", "id"],
+    cookie: cookieDe(sesion),
+    env: ENV,
+    ahora: AHORA,
+    fetchImpl(destino, opciones) {
+      assert.equal(String(destino), "https://backend-de-prueba.example/api/informes/15");
+      assert.equal(opciones.headers.Authorization, `Bearer ${ENV.DASHBOARD_API_KEY}`);
+      assert.equal(opciones.signal.aborted, false);
+      return { status: 200, async text() { return JSON.stringify({ ok: true, informe: { pacienteId: "15" } }); } };
+    }
+  });
+  assert.equal(informe.status, 200);
+  assert.equal(informe.body.informe.pacienteId, "15");
+  assert.equal(JSON.stringify(informe).includes(ENV.DASHBOARD_API_KEY), false);
 });
 
 test("una sesión vencida se rechaza y las funciones públicas no contienen la clave", async () => {
@@ -185,6 +204,9 @@ test("una sesión vencida se rechaza y las funciones públicas no contienen la c
   assert.equal(clasificarFalloClinico({ estado: 401, codigo: "SESION_EXPIRADA" }).sesion, true);
   assert.match(rutaClinica("/api/pacientes"), /^\/api\/clinico\?recurso=pacientes$/);
   assert.match(rutaClinica("/api/mediciones?periodo=7d&paciente_id=4"), /recurso=mediciones/);
+  assert.match(rutaClinica("/api/informes/15"), /recurso=informes/);
+  assert.match(rutaClinica("/api/informes/15"), /id=15/);
+  assert.equal(rutaClinica("/api/informes/15?paciente_id=3"), null);
   assert.equal(rutaClinica("/api/demo/informes/PAC-DEMO-01"), null);
 
   const publico = ["dashboard.js", "acceso.js", "consulta-clinica.js", "config.public.js", "informes-demo.js", "index.html"];
@@ -199,6 +221,8 @@ test("una sesión vencida se rechaza y las funciones públicas no contienen la c
   assert.equal(panel.includes("Authorization"), false);
   const informes = fs.readFileSync(path.join(RAIZ, "informes-demo.js"), "utf8");
   assert.match(informes, /\/api\/demo\/informes\//);
+  assert.match(informes, /\/api\/informes\/\$\{encodeURIComponent\(id\)\}/);
+  assert.match(informes, /credentials:\s*"same-origin"/);
 });
 
 test("las entradas de Vercel exigen sesión antes de hablar con el backend", async () => {

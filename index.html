@@ -108,9 +108,17 @@
       <div id="informes-app" v-cloak>
         <form class="informes-controls" @submit.prevent="solicitar">
           <label>Seleccionar paciente
-            <span class="select-wrap"><select v-model="pacienteId" :disabled="fase === 'cargando'"><option v-for="paciente in pacientes" :key="paciente.id" :value="paciente.id">{{ paciente.nombre }}</option></select><span>⌄</span></span>
+            <span class="select-wrap"><select v-model="pacienteId" :disabled="fase === 'cargando' || fase === 'consultando'">
+              <optgroup label="Pacientes de ejemplo">
+                <option v-for="paciente in ejemplos" :key="paciente.id" :value="paciente.id">{{ paciente.nombre }}</option>
+              </optgroup>
+              <optgroup v-if="registrados.length" label="Pacientes registrados">
+                <option v-for="paciente in registrados" :key="'registrado-' + paciente.id" :value="paciente.id">{{ paciente.nombre }}</option>
+              </optgroup>
+            </select><span>⌄</span></span>
           </label>
-          <button class="informes-submit" type="submit" :disabled="fase === 'cargando'">{{ fase === 'cargando' ? 'Generando informe…' : 'Generar informe' }}</button>
+          <button class="informes-submit" type="submit" :disabled="generacionBloqueada">{{ fase === 'cargando' ? 'Generando informe…' : fase === 'consultando' ? 'Consultando lecturas…' : 'Generar informe' }}</button>
+          <button v-if="reintentar" class="informes-submit" type="button" @click="solicitar">Reintentar</button>
         </form>
         <p class="informes-status" role="status" :data-fase="fase">{{ mensaje }}</p>
         <div class="informes-resultado" v-if="fase === 'listo' && informe">
