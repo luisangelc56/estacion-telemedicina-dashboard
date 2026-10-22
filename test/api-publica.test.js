@@ -19,7 +19,8 @@ test("la configuración publicada no apunta a localhost", () => {
   const html = fs.readFileSync(path.join(RAIZ, "index.html"), "utf8");
   const informes = fs.readFileSync(path.join(RAIZ, "informes-demo.js"), "utf8");
   assert.equal(publico.includes("localhost"), false);
-  assert.match(publico, /apiBase:\s*""/);
+  assert.match(publico, /apiBase:\s*"https:\/\/estacion-telemedicina-api\.onrender\.com"/);
+  assert.equal(publico.includes("estacion-telemedicina-api.onrender.com/"), false);
   assert.match(html, /config\.public\.js/);
   assert.match(html, /hostname === "localhost" \|\| location\.hostname === "127\.0\.0\.1"/);
   assert.match(informes, /\/api\/demo\/informes\/\$\{encodeURIComponent\(this\.pacienteId\)\}/);
