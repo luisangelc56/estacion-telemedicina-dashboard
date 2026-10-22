@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="./dashboard-polish.css">
   <link rel="stylesheet" href="./dashboard-vitals.css">
   <link rel="stylesheet" href="./dashboard-controls.css">
+  <link rel="stylesheet" href="./informes-demo.css">
 </head>
 <body>
   <aside class="sidebar">
@@ -17,6 +18,7 @@
     <a class="nav-item active" href="./index.html"><span class="nav-icon">▦</span>Resumen</a>
     <a class="nav-item" href="#mediciones"><span class="nav-icon">⌁</span>Mediciones</a>
     <a class="nav-item" href="#pacientes"><span class="nav-icon">♙</span>Pacientes</a>
+    <a class="nav-item" href="#informes"><span class="nav-icon">✎</span>Informes</a>
     <button class="nav-item nav-action" id="nav-add-patient" type="button"><span class="nav-icon">＋</span>Agregar paciente</button>
     <div class="sidebar-bottom"><span class="status-dot" id="api-dot"></span><span>API de telemedicina<small id="api-status">Conectando...</small></span></div>
   </aside>
@@ -82,6 +84,33 @@
       <article class="panel patients-panel" id="pacientes"><div class="panel-heading"><div><h2>Pacientes</h2><p>Busca por nombre, contacto o ID</p></div><div class="patient-counts"><span class="count-badge" id="patient-badge">0</span><span class="patient-visible-count" id="patient-count-visible">0 en total</span></div></div>
         <div class="patient-list" id="patient-list" v-cloak><div v-if="pacientes.length === 0" class="loading-cell">{{ mensajeVacio }}</div><button v-for="paciente in pacientes" :key="paciente.id" class="patient-row patient-detail-trigger" type="button" :data-patient-id="paciente.id"><span class="patient-avatar">{{ iniciales(paciente) }}</span><span class="patient-info"><strong>{{ nombre(paciente) }}</strong><span>{{ contacto(paciente) }}</span></span><span class="patient-date">{{ fechaRegistro(paciente.creado_en) }}</span><span class="patient-row-arrow" aria-hidden="true">›</span></button></div><div class="patient-foot"><span id="patient-foot-count">Mostrando pacientes</span><span class="people-icon">♙</span></div></article>
     </section>
+    <section class="panel informes-panel" id="informes" aria-labelledby="informes-heading">
+      <div class="panel-heading"><div><div class="eyebrow">DATOS FICTICIOS</div><h2 id="informes-heading">Informe orientativo</h2><p class="informes-intro">Esta sección usa únicamente pacientes ficticios. El resultado es orientativo y no constituye un diagnóstico, un tratamiento ni una recomendación de medicamentos.</p></div></div>
+      <div id="informes-app" v-cloak>
+        <form class="informes-controls" @submit.prevent="solicitar">
+          <label>Paciente ficticio
+            <span class="select-wrap"><select v-model="pacienteId" :disabled="fase === 'cargando'"><option v-for="paciente in pacientes" :key="paciente.id" :value="paciente.id">{{ paciente.id }}</option></select><span>⌄</span></span>
+          </label>
+          <button class="informes-submit" type="submit" :disabled="fase === 'cargando'">{{ fase === 'cargando' ? 'Generando…' : 'Solicitar informe' }}</button>
+        </form>
+        <p class="informes-status" role="status" :data-fase="fase">{{ mensaje }}</p>
+        <div class="informes-resultado" v-if="fase === 'listo' && informe">
+          <div class="informes-grid">
+            <article class="informes-dato"><span>PERÍODO</span><strong>{{ informe.desde }} – {{ informe.hasta }}</strong><p>{{ informe.dias }} días</p></article>
+            <article class="informes-dato"><span>LECTURAS UTILIZADAS</span><strong>{{ informe.lecturasUtilizadas }}</strong></article>
+            <article class="informes-dato"><span>PACIENTE</span><strong>{{ informe.pacienteId }}</strong></article>
+          </div>
+          <div class="informes-grid">
+            <article class="informes-dato"><span>FRECUENCIA CARDÍACA</span><p>{{ informe.frecuenciaCardiaca.texto }}</p><p>Tendencia: {{ informe.tendencias.frecuenciaCardiaca }}</p></article>
+            <article class="informes-dato"><span>TEMPERATURA</span><p>{{ informe.temperatura.texto }}</p><p>Tendencia: {{ informe.tendencias.temperatura }}</p></article>
+            <article class="informes-dato"><span>VARIABILIDAD CARDÍACA</span><p>{{ informe.variabilidadCardiaca.texto }}</p><p>Tendencia: {{ informe.tendencias.variabilidadCardiaca }}</p></article>
+          </div>
+          <article class="informes-dato"><span>RESUMEN ORIENTATIVO</span><p class="informes-texto">{{ informe.resumenOrientativo }}</p></article>
+          <article class="informes-dato"><span>LIMITACIONES</span><ul class="informes-lista"><li v-for="(limite, indice) in informe.limitaciones" :key="indice">{{ limite }}</li></ul></article>
+          <p class="informes-advertencia">{{ informe.advertencia }}</p>
+        </div>
+      </div>
+    </section>
     <footer>Estación de Telemedicina <span>•</span> Panel de monitoreo</footer>
   </main>
   <dialog class="patient-detail-dialog" id="patient-detail-dialog" aria-labelledby="patient-detail-name">
@@ -111,11 +140,13 @@
   </dialog>
   <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.prod.js" defer></script>
   <script src="./config.public.js" defer></script>
+  <script src="./api-base.js" defer></script>
   <script>
     if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
       document.write('<script src="./config.js" defer></' + 'script>');
     }
   </script>
   <script src="./dashboard.js" defer></script>
+  <script src="./informes-demo.js" defer></script>
 </body>
 </html>

@@ -1,56 +1,13 @@
 const PALETA = ["#168f91", "#438ac0", "#43a990", "#d69a51", "#d7788f", "#43aabd", "#8b78c8"];
 const $ = (id) => document.getElementById(id);
-function panelEnLocal() {
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1";
-}
-function normalizarApiBase(valor) {
-  if (typeof valor !== "string" || !valor.trim()) {
-    return { error: "La URL de la API debe ser absoluta y usar http o https." };
-  }
-  let url;
-  try {
-    url = new URL(valor.trim());
-  } catch {
-    return { error: "La URL de la API debe ser absoluta y usar http o https." };
-  }
-  if (url.username || url.password) {
-    return { error: "La URL de la API no puede incluir usuario ni contraseña." };
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    return { error: "La URL de la API debe usar el protocolo http o https." };
-  }
-  if (url.search || url.hash) {
-    return { error: "La URL de la API no debe incluir una consulta ni un fragmento." };
-  }
-  if (window.location.protocol === "https:" && url.protocol === "http:") {
-    return { error: "El panel está en HTTPS. La API también debe usar HTTPS para que el navegador permita la solicitud." };
-  }
-  const ruta = url.pathname.replace(/\/+$/, "");
-  return { base: `${url.origin}${ruta}` };
-}
-function resolverApiBase() {
-  const parametros = new URLSearchParams(window.location.search);
-  if (panelEnLocal() && parametros.has("api")) {
-    return normalizarApiBase(parametros.get("api"));
-  }
-  const configurada = window.TELEMEDICINA_CONFIG && window.TELEMEDICINA_CONFIG.apiBase;
-  if (typeof configurada === "string" && configurada.trim()) {
-    return normalizarApiBase(configurada);
-  }
-  if (panelEnLocal()) {
-    return normalizarApiBase("http://localhost:3000");
-  }
-  return { error: "Falta la URL de la API. Copia config.example.js a config.js y define apiBase con la dirección del backend." };
-}
-const resolucionApi = resolverApiBase();
+const resolucionApi = window.TELEMEDICINA_API.resolverApiBase(window.location, window.TELEMEDICINA_CONFIG);
 const API_BASE = resolucionApi.base || "";
 const ERROR_API = resolucionApi.error || "";
 function urlDeApi(ruta) {
   if (!API_BASE) {
     throw new Error(ERROR_API || "La API no está configurada.");
   }
-  return `${API_BASE}${ruta}`;
+  return window.TELEMEDICINA_API.urlDeApi(API_BASE, ruta);
 }
 let mediciones = [];
 let pacientes = [];

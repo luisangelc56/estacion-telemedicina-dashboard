@@ -14,10 +14,13 @@ const ARCHIVOS = new Map([
   ["dashboard.js", "text/javascript; charset=utf-8"],
   ["config.js", "text/javascript; charset=utf-8"],
   ["config.public.js", "text/javascript; charset=utf-8"],
+  ["api-base.js", "text/javascript; charset=utf-8"],
   ["dashboard.css", "text/css; charset=utf-8"],
   ["dashboard-polish.css", "text/css; charset=utf-8"],
   ["dashboard-vitals.css", "text/css; charset=utf-8"],
-  ["dashboard-controls.css", "text/css; charset=utf-8"]
+  ["dashboard-controls.css", "text/css; charset=utf-8"],
+  ["informes-demo.css", "text/css; charset=utf-8"],
+  ["informes-demo.js", "text/javascript; charset=utf-8"]
 ]);
 
 function leerPuerto() {
