@@ -1,4 +1,4 @@
-const PALETA = ["#168f91", "#438ac0", "#43a990", "#d69a51", "#d7788f", "#43aabd", "#8b78c8"];
+const PALETA = ["#0f6e73", "#1d4e63", "#3d8b84", "#5f8f86", "#245e78", "#4e7c8a", "#8aa39a"];
 const $ = (id) => document.getElementById(id);
 const resolucionApi = window.TELEMEDICINA_API.resolverApiBase(window.location, window.TELEMEDICINA_CONFIG);
 const API_BASE = resolucionApi.base || "";
@@ -410,7 +410,7 @@ function descargarFichaPaciente() {
   const filas = lecturas.length
     ? lecturas.map((lectura) => `<tr><td>${escapar(lectura.tipo || "Sin tipo")}</td><td>${escapar(numero(lectura.valor))} ${escapar(lectura.unidad || "")}</td><td>${escapar(fechaHora(lectura.registrado_en))}</td></tr>`).join("")
     : '<tr><td colspan="3">No hay lecturas vinculadas a este paciente.</td></tr>';
-  const documento = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ficha de ${escapar(nombrePaciente(paciente))}</title><style>*{box-sizing:border-box}body{max-width:900px;margin:40px auto;padding:0 24px;color:#20334d;font:15px Arial,sans-serif}header{padding:22px 0;border-bottom:3px solid #168f91}h1{margin:0;font-size:26px}header p,small{color:#718197}.section{margin-top:26px}h2{font-size:17px}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}dl div{padding:12px;border:1px solid #e2eaf0;border-radius:8px;background:#fbfcfd}dt{color:#718197;font-size:11px;text-transform:uppercase}dd{margin:5px 0 0;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse}th,td{padding:11px;text-align:left;border-bottom:1px solid #e5ebf2}th{background:#f2f7f8;color:#53657b;font-size:11px}@media(max-width:560px){body{margin:20px auto;padding:0 14px}dl{grid-template-columns:1fr}}@media print{body{margin:0 auto;padding:0}header{break-after:avoid}tr{break-inside:avoid}}</style></head><body><header><h1>Ficha del paciente</h1><p>${escapar(nombrePaciente(paciente))} · ID ${escapar(paciente.id)}</p><small>Generada el ${escapar(fechaHora(new Date().toISOString()))}</small></header><section class="section"><h2>Datos del paciente</h2><dl>${campos.map(([etiqueta, valor]) => `<div><dt>${escapar(etiqueta)}</dt><dd>${escapar(valor)}</dd></div>`).join("")}</dl></section><section class="section"><h2>Mediciones recientes</h2><p><small>Se incluyen hasta 10 de las ${escapar(lecturasDetalleActuales.length)} lecturas consultadas.</small></p><table><thead><tr><th>Tipo</th><th>Valor</th><th>Fecha y hora</th></tr></thead><tbody>${filas}</tbody></table></section><footer class="section"><small>Documento informativo generado por la estación de telemedicina.</small></footer></body></html>`;
+  const documento = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ficha de ${escapar(nombrePaciente(paciente))}</title><style>*{box-sizing:border-box}body{max-width:900px;margin:40px auto;padding:0 24px;color:#20334d;font:15px Arial,sans-serif}header{padding:22px 0;border-bottom:3px solid #0f6e73}h1{margin:0;font-size:26px}header p,small{color:#718197}.section{margin-top:26px}h2{font-size:17px}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}dl div{padding:12px;border:1px solid #e2eaf0;border-radius:8px;background:#fbfcfd}dt{color:#718197;font-size:11px;text-transform:uppercase}dd{margin:5px 0 0;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse}th,td{padding:11px;text-align:left;border-bottom:1px solid #e5ebf2}th{background:#f2f7f8;color:#53657b;font-size:11px}@media(max-width:560px){body{margin:20px auto;padding:0 14px}dl{grid-template-columns:1fr}}@media print{body{margin:0 auto;padding:0}header{break-after:avoid}tr{break-inside:avoid}}</style></head><body><header><h1>Ficha del paciente</h1><p>${escapar(nombrePaciente(paciente))} · ID ${escapar(paciente.id)}</p><small>Generada el ${escapar(fechaHora(new Date().toISOString()))}</small></header><section class="section"><h2>Datos del paciente</h2><dl>${campos.map(([etiqueta, valor]) => `<div><dt>${escapar(etiqueta)}</dt><dd>${escapar(valor)}</dd></div>`).join("")}</dl></section><section class="section"><h2>Mediciones recientes</h2><p><small>Se incluyen hasta 10 de las ${escapar(lecturasDetalleActuales.length)} lecturas consultadas.</small></p><table><thead><tr><th>Tipo</th><th>Valor</th><th>Fecha y hora</th></tr></thead><tbody>${filas}</tbody></table></section><footer class="section"><small>Documento informativo generado por la estación de telemedicina.</small></footer></body></html>`;
   const ventanaImpresion = window.open("", "_blank");
   if (!ventanaImpresion) {
     const aviso = $("patient-detail-feedback");
@@ -536,12 +536,12 @@ function dibujarGrafica() {
   const filasPorSerie = comparacionActiva
     ? medicionesComparacion.map((lecturas, index) => ({
       nombre: porPaciente.get(pacientesComparacion[index]) || `Paciente ${index + 1}`,
-      color: index === 0 ? "#168f91" : "#e4778b",
+      color: index === 0 ? "#0f6e73" : "#1d4e63",
       filas: seleccionarPuntos(lecturas.filter((m) => m.tipo === tipoActual && Number.isFinite(Number(m.valor))))
     }))
     : [{
       nombre: tipoActual || "Mediciones",
-      color: "#168f91",
+      color: "#0f6e73",
       filas: seleccionarPuntos(mediciones.filter((m) => m.tipo === tipoActual && Number.isFinite(Number(m.valor))))
     }];
   const valores = filasPorSerie.flatMap((serie) => serie.filas.map((fila) => Number(fila.valor)));
