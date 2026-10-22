@@ -16,6 +16,7 @@ const ARCHIVOS = new Map([
   ["config.public.js", "text/javascript; charset=utf-8"],
   ["api-base.js", "text/javascript; charset=utf-8"],
   ["consulta-clinica.js", "text/javascript; charset=utf-8"],
+  ["acceso.js", "text/javascript; charset=utf-8"],
   ["dashboard.css", "text/css; charset=utf-8"],
   ["dashboard-polish.css", "text/css; charset=utf-8"],
   ["dashboard-vitals.css", "text/css; charset=utf-8"],
@@ -148,8 +149,101 @@ async function servirArchivo(res, metodo, nombre) {
   enviar(res, metodo, 200, contenido, ARCHIVOS.get(nombre));
 }
 
+const { manejarSesion } = require("./api/_lib/sesion");
+const { consultarClinico } = require("./api/_lib/proxy");
+
+function leerCuerpo(req, limite) {
+  return new Promise((resolve, reject) => {
+    const trozos = [];
+    let total = 0;
+    req.on("data", (trozo) => {
+      total += trozo.length;
+      if (total > limite) {
+        reject(Object.assign(new Error("grande"), { codigo: "GRANDE" }));
+        req.destroy();
+        return;
+      }
+      trozos.push(trozo);
+    });
+    req.on("end", () => resolve(Buffer.concat(trozos).toString("utf8")));
+    req.on("error", reject);
+  });
+}
+
+function enviarJson(res, resultado) {
+  const cuerpo = Buffer.from(JSON.stringify(resultado.body || {}));
+  const cabeceras = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Length": cuerpo.length,
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff"
+  };
+  if (resultado.cookie) cabeceras["Set-Cookie"] = resultado.cookie;
+  res.writeHead(resultado.status, cabeceras);
+  res.end(cuerpo);
+}
+
+async function servirApi(req, res) {
+  const url = new URL(req.url, `http://${HOST}`);
+  const seguro = (req.headers["x-forwarded-proto"] || "") === "https";
+  if (url.pathname === "/api/sesion") {
+    let body = {};
+    if (req.method === "POST") {
+      const texto = await leerCuerpo(req, 4096);
+      if (texto) body = JSON.parse(texto);
+    }
+    const resultado = await manejarSesion({
+      method: req.method,
+      body,
+      cookie: req.headers.cookie || "",
+      origen: req.headers.origin || "",
+      host: req.headers.host || "",
+      reenviado: req.headers["x-forwarded-for"] || "",
+      seguro,
+      env: process.env
+    });
+    enviarJson(res, resultado);
+    return;
+  }
+  let body;
+  let esJson = false;
+  if (req.method === "POST" || req.method === "PUT") {
+    const texto = await leerCuerpo(req, 32768);
+    const tipo = req.headers["content-type"] || "";
+    if (texto) {
+      body = JSON.parse(texto);
+      esJson = /^application\/json(?:\s*;|$)/i.test(tipo);
+    }
+  }
+  const resultado = await consultarClinico({
+    method: req.method,
+    recurso: url.searchParams.get("recurso"),
+    id: url.searchParams.get("id"),
+    periodo: url.searchParams.get("periodo"),
+    pacienteId: url.searchParams.get("paciente_id"),
+    claves: [...url.searchParams.keys()],
+    body,
+    json: esJson,
+    cookie: req.headers.cookie || "",
+    origen: req.headers.origin || "",
+    host: req.headers.host || "",
+    permitirHttp: process.env.PERMITIR_HTTP_BACKEND === "1",
+    env: process.env
+  });
+  enviarJson(res, resultado);
+}
+
 function crearServidor() {
   return http.createServer((req, res) => {
+    const ruta = req.url ? req.url.split("?")[0] : "";
+    if (ruta === "/api/sesion" || ruta === "/api/clinico") {
+      servirApi(req, res).catch((error) => {
+        if (res.headersSent) return;
+        const estado = error && error.codigo === "GRANDE" ? 413 : 400;
+        enviarJson(res, { status: estado, body: { ok: false, codigo: "SOLICITUD_INVALIDA", mensaje: "No se pudo leer la solicitud." } });
+      });
+      return;
+    }
     if (req.method !== "GET" && req.method !== "HEAD") {
       enviarTexto(res, req.method, 405, "Método no permitido", { Allow: "GET, HEAD" });
       return;

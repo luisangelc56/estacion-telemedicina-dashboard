@@ -20,6 +20,7 @@ let pacientesComparacion = ["", ""];
 let medicionesComparacion = [[], []];
 let cargando = false;
 let consultaClinicaBloqueada = false;
+let sesionActiva = false;
 let pacienteDetalleActual = null;
 let lecturasDetalleActuales = [];
 let secuenciaDetallePaciente = 0;
@@ -107,9 +108,55 @@ function escribirPastilla(texto, restringido) {
   const pastilla = document.querySelector(".live-pill");
   if (pastilla) pastilla.classList.toggle("is-restricted", restringido);
 }
+function mostrarAcceso(mensaje) {
+  const panel = $("access-panel");
+  if (panel) panel.hidden = false;
+  const salir = $("logout-button");
+  if (salir) salir.hidden = true;
+  const estado = $("access-status");
+  if (!estado) return;
+  if (mensaje) {
+    estado.textContent = mensaje;
+    estado.hidden = false;
+  } else {
+    estado.textContent = "";
+    estado.hidden = true;
+  }
+}
+function ocultarAcceso() {
+  const panel = $("access-panel");
+  if (panel) panel.hidden = true;
+  const salir = $("logout-button");
+  if (salir) salir.hidden = false;
+  const estado = $("access-status");
+  if (estado) estado.hidden = true;
+}
+function presentarSinSesion() {
+  const clasificacion = window.TELEMEDICINA_CONSULTA.clasificarFalloClinico({ codigo: "SESION_REQUERIDA" });
+  $("error-banner").hidden = true;
+  $("api-status").textContent = clasificacion.servicio;
+  $("api-dot").style.background = "#e9a641";
+  $("api-dot").style.boxShadow = "0 0 0 3px #fff1dc";
+  escribirPastilla(clasificacion.pastilla, true);
+  $("measurement-rows").innerHTML = `<tr><td colspan="5" class="loading-cell">${escapar(clasificacion.mediciones)}</td></tr>`;
+  if (vistaPacientesVue) {
+    vistaPacientesVue.pacientes = [];
+    vistaPacientesVue.mensajeVacio = clasificacion.pacientes;
+  } else {
+    $("patient-list").innerHTML = `<div class="loading-cell">${escapar(clasificacion.pacientes)}</div>`;
+  }
+  $("chart-empty").hidden = false;
+  $("chart-empty-message").textContent = "Inicia sesión para consultar las lecturas.";
+  $("chart-show-all").hidden = true;
+  $("updated-at").textContent = "Esperando acceso del equipo";
+}
 function mostrarFalloDeCarga(error) {
   const clasificacion = window.TELEMEDICINA_CONSULTA.clasificarFalloClinico(error);
   consultaClinicaBloqueada = clasificacion.restringido;
+  if (clasificacion.sesion) {
+    sesionActiva = false;
+    mostrarAcceso(clasificacion.mensaje);
+  }
   $("error-message").textContent = !API_BASE && ERROR_API && !clasificacion.restringido ? ERROR_API : clasificacion.mensaje;
   $("error-banner").hidden = false;
   $("error-banner").classList.toggle("is-restricted", clasificacion.restringido);
@@ -133,13 +180,17 @@ function mostrarFalloDeCarga(error) {
   console.error(error);
 }
 async function obtener(url) {
-  const response = await fetch(urlDeApi(url), { headers: { Accept: "application/json" } });
+  const destino = window.TELEMEDICINA_CONSULTA.rutaClinica(url);
+  if (!destino) throw new Error("Consulta no permitida");
+  const response = await fetch(destino, { headers: { Accept: "application/json" }, credentials: "same-origin" });
+  const cuerpo = await response.json().catch(() => ({}));
   if (!response.ok) {
     const fallo = new Error(`Error ${response.status} al consultar ${url}`);
     fallo.estado = response.status;
+    fallo.codigo = typeof cuerpo.codigo === "string" ? cuerpo.codigo : "";
     throw fallo;
   }
-  return response.json();
+  return cuerpo;
 }
 async function cargar(opciones = {}) {
   const manual = opciones.manual === true;
@@ -167,6 +218,8 @@ async function cargar(opciones = {}) {
       ? respuestas.slice(2).map((respuesta) => Array.isArray(respuesta.mediciones) ? respuesta.mediciones : [])
       : [[], []];
     consultaClinicaBloqueada = false;
+    sesionActiva = true;
+    ocultarAcceso();
     $("error-banner").hidden = true;
     $("error-banner").classList.remove("is-restricted");
     $("api-status").textContent = "Disponible";
@@ -609,13 +662,21 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
   estado.hidden = true;
   estado.classList.remove("error");
   try {
-    const response = await fetch(urlDeApi(`/api/pacientes/${encodeURIComponent(id)}`), {
+    const destino = window.TELEMEDICINA_CONSULTA.rutaClinica(`/api/pacientes/${encodeURIComponent(id)}`);
+    if (!destino) throw new Error("Consulta no permitida");
+    const response = await fetch(destino, {
       method: "PUT",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(datos)
     });
     const resultado = await response.json().catch(() => ({}));
-    if (response.status === 401) throw new Error("No tienes autorización para modificar este paciente.");
+    if (response.status === 401 || resultado.codigo === "SESION_EXPIRADA" || resultado.codigo === "SESION_REQUERIDA") {
+      sesionActiva = false;
+      consultaClinicaBloqueada = true;
+      mostrarAcceso(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
+      throw new Error(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
+    }
     if (!response.ok) throw new Error(resultado.mensaje || "No se pudieron guardar los cambios. Inténtalo nuevamente.");
     if (!resultado.paciente?.id) throw new Error("No se pudieron guardar los cambios. Inténtalo nuevamente.");
     pacienteDetalleActual = resultado.paciente;
@@ -719,13 +780,21 @@ $("patient-form").addEventListener("submit", async (event) => {
   estado.hidden = true;
   estado.classList.remove("error");
   try {
-    const response = await fetch(urlDeApi("/api/pacientes"), {
+    const destino = window.TELEMEDICINA_CONSULTA.rutaClinica("/api/pacientes");
+    if (!destino) throw new Error("Consulta no permitida");
+    const response = await fetch(destino, {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(datos)
     });
     const resultado = await response.json().catch(() => ({}));
-    if (response.status === 401) throw new Error("No tienes autorización para registrar pacientes.");
+    if (response.status === 401 || resultado.codigo === "SESION_EXPIRADA" || resultado.codigo === "SESION_REQUERIDA") {
+      sesionActiva = false;
+      consultaClinicaBloqueada = true;
+      mostrarAcceso(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
+      throw new Error(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
+    }
     if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : "No se pudo registrar el paciente. Revisa los datos e inténtalo de nuevo."));
     if (!resultado.paciente?.id) throw new Error("No se pudo confirmar el registro. Actualiza la lista para revisarlo.");
     form.reset();
@@ -744,8 +813,14 @@ $("patient-form").addEventListener("submit", async (event) => {
     boton.disabled = false;
   }
 });
-$("refresh-button").addEventListener("click", () => cargar({ manual: true }));
-$("retry-button").addEventListener("click", () => cargar({ manual: true }));
+$("refresh-button").addEventListener("click", () => {
+  if (sesionActiva) cargar({ manual: true });
+  else prepararAcceso();
+});
+$("retry-button").addEventListener("click", () => {
+  if (sesionActiva) cargar({ manual: true });
+  else prepararAcceso();
+});
 document.querySelectorAll(".vital-card").forEach((tarjeta) => tarjeta.addEventListener("click", () => {
   const tipo = tarjeta.dataset.tipo;
   if (!tipo) return;
@@ -825,5 +900,83 @@ if ("IntersectionObserver" in window) {
 window.addEventListener("scroll", () => {
   if (window.scrollY < 120) activarSeccion("resumen");
 }, { passive: true });
-cargar();
-setInterval(cargar, 60000);
+setInterval(() => {
+  if (sesionActiva) cargar();
+}, 60000);
+
+async function prepararAcceso() {
+  let respuesta;
+  try {
+    respuesta = await fetch("/api/sesion", { headers: { Accept: "application/json" }, credentials: "same-origin" });
+  } catch (error) {
+    mostrarFalloDeCarga(error);
+    return;
+  }
+  if (respuesta.ok) {
+    sesionActiva = true;
+    consultaClinicaBloqueada = false;
+    ocultarAcceso();
+    await cargar({ manual: true });
+    return;
+  }
+  const cuerpo = await respuesta.json().catch(() => ({}));
+  sesionActiva = false;
+  consultaClinicaBloqueada = true;
+  if (respuesta.status === 401) {
+    mostrarAcceso(cuerpo.codigo === "SESION_EXPIRADA" ? window.TELEMEDICINA_ACCESO.mensajeDeSesion("SESION_EXPIRADA") : "");
+    presentarSinSesion();
+    return;
+  }
+  mostrarFalloDeCarga({ estado: respuesta.status, codigo: cuerpo.codigo });
+}
+$("access-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const boton = form.querySelector("button[type='submit']");
+  const estado = $("access-status");
+  const usuario = String(new FormData(form).get("usuario") || "").trim();
+  const contrasena = String(new FormData(form).get("contrasena") || "");
+  boton.disabled = true;
+  estado.hidden = true;
+  try {
+    const respuesta = await fetch("/api/sesion", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ usuario, contrasena })
+    });
+    const cuerpo = await respuesta.json().catch(() => ({}));
+    form.elements.contrasena.value = "";
+    if (!respuesta.ok) {
+      estado.textContent = window.TELEMEDICINA_ACCESO.mensajeDeSesion(cuerpo.codigo);
+      estado.hidden = false;
+      return;
+    }
+    sesionActiva = true;
+    consultaClinicaBloqueada = false;
+    ocultarAcceso();
+    await cargar({ manual: true });
+  } catch {
+    form.elements.contrasena.value = "";
+    estado.textContent = "No se pudo iniciar sesión. Inténtalo nuevamente.";
+    estado.hidden = false;
+  } finally {
+    boton.disabled = false;
+  }
+});
+$("logout-button").addEventListener("click", async () => {
+  try {
+    await fetch("/api/sesion", { method: "DELETE", credentials: "same-origin" });
+  } catch {
+    /* La interfaz cierra la sesión local aunque la red falle. */
+  }
+  sesionActiva = false;
+  consultaClinicaBloqueada = true;
+  mediciones = [];
+  pacientes = [];
+  pacienteActual = "";
+  dibujar();
+  mostrarAcceso("");
+  presentarSinSesion();
+});
+prepararAcceso();

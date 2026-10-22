@@ -23,8 +23,21 @@
     <div class="sidebar-bottom"><span class="status-dot" id="api-dot"></span><span>Servicio<small id="api-status">Cargando información...</small></span></div>
   </aside>
   <main class="main">
-    <header class="topbar"><div class="breadcrumb">Estación <span>/</span> <strong>Resumen</strong></div><div class="top-actions"><span class="live-pill"><i></i><span id="live-label">En vivo</span></span><button class="icon-button" id="refresh-button" title="Actualizar datos" aria-label="Actualizar datos">↻</button><div class="avatar">ET</div></div></header>
+    <header class="topbar"><div class="breadcrumb">Estación <span>/</span> <strong>Resumen</strong></div><div class="top-actions"><span class="live-pill"><i></i><span id="live-label">En vivo</span></span><button class="text-button" id="logout-button" type="button" hidden>Cerrar sesión</button><button class="icon-button" id="refresh-button" title="Actualizar datos" aria-label="Actualizar datos">↻</button><div class="avatar">ET</div></div></header>
     <section class="page-heading"><div><div class="eyebrow">PANEL DE CONTROL</div><h1>Resumen general</h1><p>Monitorea la actividad y las mediciones de tu estación.</p></div><div class="date-chip"><span>◷</span><span id="updated-at">Actualizando…</span></div></section>
+    <section class="access-panel" id="access-panel" hidden>
+      <article class="access-card">
+        <p class="eyebrow">ACCESO DEL EQUIPO</p>
+        <h2>Iniciar sesión</h2>
+        <p>Los datos clínicos están protegidos. Inicia sesión para registrar pacientes, consultar mediciones y mostrar la estación. Los informes de ejemplo siguen disponibles más abajo.</p>
+        <form id="access-form">
+          <label>Usuario<input name="usuario" type="text" autocomplete="username" maxlength="64" required></label>
+          <label>Contraseña<input name="contrasena" type="password" autocomplete="current-password" maxlength="128" required></label>
+          <p class="access-status" id="access-status" role="status" hidden></p>
+          <button type="submit">Entrar</button>
+        </form>
+      </article>
+    </section>
     <div class="error-banner" id="error-banner" hidden><span>⚠</span><span id="error-message">No se pudieron cargar los datos.</span><button id="retry-button">Reintentar</button></div>
     <section class="stats-grid" aria-label="Indicadores">
       <article class="stat-card"><div class="stat-top"><span>Pacientes registrados</span><span class="stat-icon violet">♙</span></div><div class="stat-value" id="patient-count">—</div><div class="stat-foot"><span class="muted">En la estación</span></div></article>
@@ -142,6 +155,7 @@
   <script src="./config.public.js" defer></script>
   <script src="./api-base.js" defer></script>
   <script src="./consulta-clinica.js" defer></script>
+  <script src="./acceso.js" defer></script>
   <script>
     if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
       document.write('<script src="./config.js" defer></' + 'script>');
