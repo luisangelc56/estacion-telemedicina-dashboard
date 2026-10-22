@@ -34,8 +34,9 @@ test("el panel publicado espera la URL HTTPS de Render y el local conserva local
     protocol: "https:"
   }), { apiBase: "" });
   assert.equal(publicado.base, undefined);
-  assert.match(publicado.error, /config\.public\.js/);
+  assert.match(publicado.error, /no está disponible/);
   assert.equal(publicado.error.includes("localhost"), false);
+  assert.equal(publicado.error.includes("config.public.js"), false);
 
   const local = resolverApiBase(ubicacion({
     hostname: "127.0.0.1",
@@ -48,7 +49,8 @@ test("el panel publicado espera la URL HTTPS de Render y el local conserva local
     protocol: "https:"
   }), { apiBase: "http://localhost:3000" });
   assert.equal(rechazado.base, undefined);
-  assert.match(rechazado.error, /localhost/);
+  assert.match(rechazado.error, /no está disponible/);
+  assert.equal(rechazado.error.includes("localhost"), false);
 
   const listo = resolverApiBase(ubicacion({
     hostname: "estacion-telemedicina-dashboard.vercel.app",

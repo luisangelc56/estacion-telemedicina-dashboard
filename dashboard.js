@@ -5,7 +5,7 @@ const API_BASE = resolucionApi.base || "";
 const ERROR_API = resolucionApi.error || "";
 function urlDeApi(ruta) {
   if (!API_BASE) {
-    throw new Error(ERROR_API || "La API no está configurada.");
+    throw new Error(ERROR_API || "El servicio no está disponible en este momento.");
   }
   return window.TELEMEDICINA_API.urlDeApi(API_BASE, ruta);
 }
@@ -91,14 +91,14 @@ function antiguedadLectura(valor) {
   const fechaLectura = new Date(valor).getTime();
   if (!Number.isFinite(fechaLectura)) return { estado: "unknown", texto: "Fecha no disponible" };
   const diferencia = Date.now() - fechaLectura;
-  if (diferencia < -60_000) return { estado: "future", texto: "Fecha futura; revisa el reloj del sensor" };
+  if (diferencia < -60_000) return { estado: "future", texto: "Fecha no válida" };
   if (diferencia <= 60_000) return { estado: "fresh", texto: "Recibida hace menos de 1 min · reciente" };
   const minutos = Math.floor(diferencia / 60_000);
   const horas = Math.floor(minutos / 60);
   const dias = Math.floor(horas / 24);
   const tiempo = dias ? `Hace ${dias} ${dias === 1 ? "día" : "días"}` : horas ? `Hace ${horas} ${horas === 1 ? "hora" : "horas"}` : `Hace ${minutos} ${minutos === 1 ? "minuto" : "minutos"}`;
   const desactualizada = diferencia > 15 * 60_000;
-  return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "sin actualizar (>15 min)" : "reciente"}` };
+  return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "sin actualizar" : "reciente"}` };
 }
 function activarError(mensaje) {
   $("error-message").textContent = mensaje;
@@ -135,12 +135,12 @@ async function cargar() {
       ? respuestas.slice(2).map((respuesta) => Array.isArray(respuesta.mediciones) ? respuesta.mediciones : [])
       : [[], []];
     $("error-banner").hidden = true;
-    $("api-status").textContent = "Conectada correctamente";
+    $("api-status").textContent = "Disponible";
     $("api-dot").style.background = "";
     $("updated-at").textContent = `Actualizado ${new Intl.DateTimeFormat("es-GT", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`;
     dibujar();
   } catch (error) {
-    activarError(!API_BASE && ERROR_API ? ERROR_API : "No se pudieron cargar los datos. Verifica que la API y PostgreSQL estén disponibles.");
+    activarError(!API_BASE && ERROR_API ? ERROR_API : "No se pudieron cargar los datos. El servicio no está disponible en este momento.");
     $("measurement-rows").innerHTML = '<tr><td colspan="5" class="loading-cell">No se pudieron cargar las mediciones.</td></tr>';
     $("patient-list").innerHTML = '<div class="loading-cell">No se pudieron cargar los pacientes.</div>';
     console.error(error);
@@ -190,8 +190,8 @@ function dibujar() {
   const periodoTexto = { "24h": "últimas 24 horas", "7d": "últimos 7 días", "30d": "últimos 30 días" }[periodoActual];
   $("patient-context-heading").textContent = pacienteFiltrado ? nombrePaciente(pacienteFiltrado) : "Todos los pacientes";
   $("patient-context-help").textContent = pacienteFiltrado
-    ? (mediciones.length ? `Viendo las lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}. El sensor debe enviar su ID para registrar nuevas lecturas a su nombre.` : `Todavía no hay lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}. Para vincular nuevas lecturas, el sensor debe enviar el ID ${pacienteFiltrado.id}.`)
-    : "Viendo las lecturas de toda la estación. Las mediciones sin paciente asignado se muestran como “Sin asignar”.";
+    ? (mediciones.length ? `Viendo las lecturas de ${nombrePaciente(pacienteFiltrado)}.` : `Todavía no hay lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}.`)
+    : "Viendo las lecturas de toda la estación. Las mediciones sin paciente aparecen como “Sin asignar”.";
   $("vitals-caption").textContent = pacienteFiltrado ? `Lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}` : "Lecturas más recientes de toda la estación";
   $("measurement-caption").textContent = pacienteFiltrado ? `Lecturas de ${nombrePaciente(pacienteFiltrado)} · ${periodoTexto}` : `Mediciones de las ${periodoTexto}`;
   $("measurement-foot").textContent = pacienteFiltrado ? `Paciente · ${periodoTexto}` : `Periodo: ${periodoTexto}`;
@@ -288,7 +288,7 @@ function dibujarDetallePaciente(paciente, lecturas) {
   const iniciales = nombre.split(/\s+/).slice(0, 2).map((parte) => parte.charAt(0)).join("").toUpperCase();
   $("patient-detail-avatar").textContent = iniciales || "P";
   $("patient-detail-name").textContent = nombre;
-  $("patient-detail-id").textContent = `Paciente ID ${paciente.id}`;
+  $("patient-detail-id").textContent = `Paciente ${paciente.id}`;
   $("patient-detail-contact").innerHTML = [
     mostrarCampoDetalle("Fecha de nacimiento", fechaLocal(paciente.fecha_nacimiento)),
     mostrarCampoDetalle("Sexo", paciente.sexo),
@@ -357,14 +357,14 @@ async function mostrarDetallePaciente(id) {
   lecturasDetalleActuales = [];
   $("patient-detail-download").disabled = true;
   $("patient-detail-feedback").hidden = true;
-  $("patient-detail-name").textContent = inicial ? nombrePaciente(inicial) : "Cargando paciente...";
-  $("patient-detail-id").textContent = `Paciente ID ${idPaciente}`;
-  $("patient-detail-contact").innerHTML = '<div class="loading-cell">Cargando datos del paciente...</div>';
-  $("detail-reading-count").textContent = "?";
-  $("detail-type-count").textContent = "?";
-  $("detail-last-reading").textContent = "?";
-  $("detail-measurement-note").textContent = "Consultando las ultimas lecturas...";
-  $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Cargando...</td></tr>';
+  $("patient-detail-name").textContent = inicial ? nombrePaciente(inicial) : "Cargando paciente…";
+  $("patient-detail-id").textContent = `Paciente ${idPaciente}`;
+  $("patient-detail-contact").innerHTML = '<div class="loading-cell">Cargando datos del paciente…</div>';
+  $("detail-reading-count").textContent = "—";
+  $("detail-type-count").textContent = "—";
+  $("detail-last-reading").textContent = "—";
+  $("detail-measurement-note").textContent = "Consultando las últimas lecturas…";
+  $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Cargando…</td></tr>';
   if (!dialogo.open) dialogo.showModal();
   try {
     const [respuestaPaciente, respuestaMediciones] = await Promise.all([
@@ -380,9 +380,9 @@ async function mostrarDetallePaciente(id) {
   } catch (error) {
     if (secuencia !== secuenciaDetallePaciente || !dialogo.open) return;
     $("patient-detail-download").disabled = true;
-    $("patient-detail-contact").innerHTML = `<div class="loading-cell">${escapar(error.message || "No se pudo cargar la ficha.")}</div>`;
+    $("patient-detail-contact").innerHTML = '<div class="loading-cell">No se pudo cargar la ficha.</div>';
     $("detail-measurement-note").textContent = "No se pudieron consultar las lecturas.";
-    $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Intenta cerrar y volver a abrir la ficha.</td></tr>';
+    $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Vuelve a abrir la ficha para intentarlo de nuevo.</td></tr>';
   }
 }
 function establecerModoEdicionPaciente(edicion) {
@@ -581,8 +581,8 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
       body: JSON.stringify(datos)
     });
     const resultado = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(resultado.mensaje || `No se pudieron guardar los cambios (error ${response.status}).`);
-    if (!resultado.paciente?.id) throw new Error("La API no devolvió los datos actualizados del paciente.");
+    if (!response.ok) throw new Error(resultado.mensaje || "No se pudieron guardar los cambios. Inténtalo nuevamente.");
+    if (!resultado.paciente?.id) throw new Error("No se pudieron guardar los cambios. Inténtalo nuevamente.");
     pacienteDetalleActual = resultado.paciente;
     pacientes = pacientes.map((paciente) => String(paciente.id) === String(id) ? resultado.paciente : paciente);
     dibujar();
@@ -592,7 +592,7 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
     $("patient-detail-feedback").hidden = false;
   } catch (error) {
     estado.textContent = error instanceof TypeError
-      ? "No se pudo conectar con la API. Revisa la conexión e inténtalo de nuevo."
+      ? "No se pudo conectar. Inténtalo nuevamente más tarde."
       : error.message || "No se pudieron guardar los cambios.";
     estado.classList.add("error");
     estado.hidden = false;
@@ -690,17 +690,17 @@ $("patient-form").addEventListener("submit", async (event) => {
       body: JSON.stringify(datos)
     });
     const resultado = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : `No se pudo registrar (error ${response.status}). Revisa los datos e inténtalo de nuevo.`));
-    if (!resultado.paciente?.id) throw new Error("La API recibió la solicitud, pero no devolvió el ID del paciente. Actualiza la lista para confirmar el registro.");
+    if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : "No se pudo registrar el paciente. Revisa los datos e inténtalo de nuevo."));
+    if (!resultado.paciente?.id) throw new Error("No se pudo confirmar el registro. Actualiza la lista para revisarlo.");
     form.reset();
     pacienteActual = String(resultado.paciente.id);
     busquedaPaciente = "";
     await cargar();
-    estado.textContent = `Paciente registrado y seleccionado (ID ${resultado.paciente.id}). El sensor debe enviar este ID para asociar las próximas lecturas.`;
+    estado.textContent = `Paciente registrado. Identificador ${resultado.paciente.id}.`;
     estado.hidden = false;
   } catch (error) {
     estado.textContent = error instanceof TypeError
-      ? "No se pudo conectar con la API. Verifica que el servidor esté iniciado e inténtalo de nuevo."
+      ? "No se pudo conectar. Inténtalo nuevamente más tarde."
       : error.message || "No se pudo registrar el paciente. Revisa los datos e inténtalo de nuevo.";
     estado.classList.add("error");
     estado.hidden = false;

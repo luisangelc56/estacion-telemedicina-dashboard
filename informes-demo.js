@@ -1,7 +1,7 @@
 (function (raiz) {
   const PACIENTES_FICTICIOS = [
-    { id: "PAC-DEMO-01" },
-    { id: "PAC-DEMO-02" }
+    { id: "PAC-DEMO-01", nombre: "Paciente de ejemplo 1" },
+    { id: "PAC-DEMO-02", nombre: "Paciente de ejemplo 2" }
   ];
   const TENDENCIAS = new Set(["ascendente", "descendente", "estable", "insuficiente"]);
 
@@ -70,18 +70,18 @@
 
   function interpretarFallo(estado, codigo) {
     if (codigo === "DATOS_INSUFICIENTES" || estado === 422) {
-      return { fase: "insuficiente", mensaje: "No hay lecturas ficticias suficientes para generar el informe." };
+      return { fase: "insuficiente", mensaje: "No hay lecturas suficientes para generar el informe." };
     }
     if (codigo === "LIMITE_SOLICITUDES" || estado === 429) {
-      return { fase: "limite", mensaje: "Demasiadas solicitudes de prueba. Espera un minuto antes de intentar de nuevo." };
+      return { fase: "limite", mensaje: "Has realizado varias solicitudes seguidas. Espera un minuto e inténtalo de nuevo." };
     }
     if (estado === 0 || codigo === "API_NO_DISPONIBLE") {
-      return { fase: "api", mensaje: "La API no está disponible. No se solicitó el informe." };
+      return { fase: "api", mensaje: "El servicio no está disponible en este momento." };
     }
     if (estado === 502 || estado === 503 || estado === 504) {
-      return { fase: "error", mensaje: "El proveedor no pudo completar la explicación. No se inventaron cifras." };
+      return { fase: "error", mensaje: "No fue posible generar el informe. Inténtalo nuevamente más tarde." };
     }
-    return { fase: "error", mensaje: "No se pudo generar el informe orientativo." };
+    return { fase: "error", mensaje: "No fue posible generar el informe. Inténtalo nuevamente más tarde." };
   }
 
   const api = { PACIENTES_FICTICIOS, presentarInforme, presentarSerie, interpretarFallo };
@@ -96,14 +96,18 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
       pacientes: informes.PACIENTES_FICTICIOS,
       pacienteId: "PAC-DEMO-01",
       fase: "inicial",
-      mensaje: "Elige un paciente ficticio y solicita el informe. Los datos de esta sección no son reales.",
+      mensaje: "Selecciona un paciente y genera el informe.",
       informe: null
     }),
     methods: {
+      nombreVisible(id) {
+        const paciente = this.pacientes.find((item) => item.id === id);
+        return paciente && paciente.nombre ? paciente.nombre : id;
+      },
       async solicitar() {
         if (this.fase === "cargando") return;
         this.fase = "cargando";
-        this.mensaje = "Generando el informe orientativo…";
+        this.mensaje = "Generando el informe…";
         this.informe = null;
         let respuesta;
         try {
@@ -130,7 +134,7 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
         }
         this.informe = informes.presentarInforme(cuerpo.informe);
         this.fase = "listo";
-        this.mensaje = "Informe orientativo generado con datos ficticios.";
+        this.mensaje = "Informe de seguimiento listo.";
       }
     }
   }).mount("#informes-app");

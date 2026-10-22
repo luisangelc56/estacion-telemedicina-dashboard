@@ -9,28 +9,28 @@
 
   function normalizarApiBase(valor, ubicacion) {
     if (typeof valor !== "string" || !valor.trim()) {
-      return { error: "La URL de la API debe ser absoluta y usar http o https." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     let url;
     try {
       url = new URL(valor.trim());
     } catch {
-      return { error: "La URL de la API debe ser absoluta y usar http o https." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     if (url.username || url.password) {
-      return { error: "La URL de la API no puede incluir usuario ni contraseña." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return { error: "La URL de la API debe usar el protocolo http o https." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     if (url.search || url.hash) {
-      return { error: "La URL de la API no debe incluir una consulta ni un fragmento." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     if (!panelEnLocal(ubicacion) && hostLocal(url.hostname)) {
-      return { error: "La versión publicada no puede usar localhost. Escribe la URL HTTPS de Render en config.public.js." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     if (ubicacion.protocol === "https:" && url.protocol === "http:") {
-      return { error: "El panel está en HTTPS. La API también debe usar HTTPS para que el navegador permita la solicitud." };
+      return { error: "El servicio no está disponible en este momento." };
     }
     const ruta = url.pathname.replace(/\/+$/, "");
     return { base: `${url.origin}${ruta}` };
@@ -48,11 +48,11 @@
     if (panelEnLocal(ubicacion)) {
       return normalizarApiBase("http://localhost:3000", ubicacion);
     }
-    return { error: "Falta la URL HTTPS de Render. Escríbela en config.public.js cuando el backend esté publicado." };
+    return { error: "El servicio no está disponible en este momento." };
   }
 
   function urlDeApi(base, ruta) {
-    if (!base) throw new Error("La API no está configurada.");
+    if (!base) throw new Error("El servicio no está disponible en este momento.");
     return `${base}${ruta}`;
   }
 
