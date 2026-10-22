@@ -116,6 +116,9 @@ h1, .panel-heading h2 { color: #1e3049; }
 .patient-avatar { color: #168b8c; background: #e6f5f3; }
 .text-link { color: #168b8c; }
 .error-banner { box-shadow: 0 3px 12px #b85b350a; }
+.error-banner.is-restricted { background: #fff8ee; border-color: #f3e2c4; color: #8a5a16; }
+.live-pill.is-restricted { color: #8a5a16; background: #fff6e8; }
+.live-pill.is-restricted i { background: #e9a641; animation: none; }
 .chart-wrap { position: relative; }
 .chart-tooltip {
   position: absolute;

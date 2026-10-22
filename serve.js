@@ -15,6 +15,7 @@ const ARCHIVOS = new Map([
   ["config.js", "text/javascript; charset=utf-8"],
   ["config.public.js", "text/javascript; charset=utf-8"],
   ["api-base.js", "text/javascript; charset=utf-8"],
+  ["consulta-clinica.js", "text/javascript; charset=utf-8"],
   ["dashboard.css", "text/css; charset=utf-8"],
   ["dashboard-polish.css", "text/css; charset=utf-8"],
   ["dashboard-vitals.css", "text/css; charset=utf-8"],

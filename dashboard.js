@@ -19,6 +19,7 @@ let comparacionActiva = false;
 let pacientesComparacion = ["", ""];
 let medicionesComparacion = [[], []];
 let cargando = false;
+let consultaClinicaBloqueada = false;
 let pacienteDetalleActual = null;
 let lecturasDetalleActuales = [];
 let secuenciaDetallePaciente = 0;
@@ -100,18 +101,49 @@ function antiguedadLectura(valor) {
   const desactualizada = diferencia > 15 * 60_000;
   return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "sin actualizar" : "reciente"}` };
 }
-function activarError(mensaje) {
-  $("error-message").textContent = mensaje;
+function escribirPastilla(texto, restringido) {
+  const etiqueta = $("live-label");
+  if (etiqueta) etiqueta.textContent = texto;
+  const pastilla = document.querySelector(".live-pill");
+  if (pastilla) pastilla.classList.toggle("is-restricted", restringido);
+}
+function mostrarFalloDeCarga(error) {
+  const clasificacion = window.TELEMEDICINA_CONSULTA.clasificarFalloClinico(error);
+  consultaClinicaBloqueada = clasificacion.restringido;
+  $("error-message").textContent = !API_BASE && ERROR_API && !clasificacion.restringido ? ERROR_API : clasificacion.mensaje;
   $("error-banner").hidden = false;
-  $("api-status").textContent = "No disponible";
-  $("api-dot").style.background = "#e47768";
+  $("error-banner").classList.toggle("is-restricted", clasificacion.restringido);
+  $("api-status").textContent = clasificacion.servicio;
+  $("api-dot").style.background = clasificacion.restringido ? "#e9a641" : "#e47768";
+  $("api-dot").style.boxShadow = clasificacion.restringido ? "0 0 0 3px #fff1dc" : "";
+  escribirPastilla(clasificacion.pastilla, clasificacion.restringido);
+  $("measurement-rows").innerHTML = `<tr><td colspan="5" class="loading-cell">${escapar(clasificacion.mediciones)}</td></tr>`;
+  if (vistaPacientesVue) {
+    vistaPacientesVue.pacientes = [];
+    vistaPacientesVue.mensajeVacio = clasificacion.pacientes;
+  } else {
+    $("patient-list").innerHTML = `<div class="loading-cell">${escapar(clasificacion.pacientes)}</div>`;
+  }
+  $("chart-empty").hidden = !clasificacion.restringido;
+  if (clasificacion.restringido) {
+    $("chart-empty-message").textContent = "Las lecturas clínicas requieren autorización.";
+    $("chart-show-all").hidden = true;
+    $("updated-at").textContent = "Datos clínicos protegidos";
+  }
+  console.error(error);
 }
 async function obtener(url) {
   const response = await fetch(urlDeApi(url), { headers: { Accept: "application/json" } });
-  if (!response.ok) throw new Error(`Error ${response.status} al consultar ${url}`);
+  if (!response.ok) {
+    const fallo = new Error(`Error ${response.status} al consultar ${url}`);
+    fallo.estado = response.status;
+    throw fallo;
+  }
   return response.json();
 }
-async function cargar() {
+async function cargar(opciones = {}) {
+  const manual = opciones.manual === true;
+  if (!window.TELEMEDICINA_CONSULTA.debeConsultarDatosClinicos(consultaClinicaBloqueada, manual)) return;
   if (cargando) return;
   cargando = true;
   const button = $("refresh-button");
@@ -134,16 +166,17 @@ async function cargar() {
     medicionesComparacion = comparacionActiva && respuestas.length > 2
       ? respuestas.slice(2).map((respuesta) => Array.isArray(respuesta.mediciones) ? respuesta.mediciones : [])
       : [[], []];
+    consultaClinicaBloqueada = false;
     $("error-banner").hidden = true;
+    $("error-banner").classList.remove("is-restricted");
     $("api-status").textContent = "Disponible";
     $("api-dot").style.background = "";
+    $("api-dot").style.boxShadow = "";
+    escribirPastilla("En vivo", false);
     $("updated-at").textContent = `Actualizado ${new Intl.DateTimeFormat("es-GT", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`;
     dibujar();
   } catch (error) {
-    activarError(!API_BASE && ERROR_API ? ERROR_API : "No se pudieron cargar los datos. El servicio no está disponible en este momento.");
-    $("measurement-rows").innerHTML = '<tr><td colspan="5" class="loading-cell">No se pudieron cargar las mediciones.</td></tr>';
-    $("patient-list").innerHTML = '<div class="loading-cell">No se pudieron cargar los pacientes.</div>';
-    console.error(error);
+    mostrarFalloDeCarga(error);
   } finally {
     controles.forEach((control) => { control.disabled = false; });
     $("compare-toggle").disabled = pacientes.length < 2;
@@ -380,8 +413,9 @@ async function mostrarDetallePaciente(id) {
   } catch (error) {
     if (secuencia !== secuenciaDetallePaciente || !dialogo.open) return;
     $("patient-detail-download").disabled = true;
-    $("patient-detail-contact").innerHTML = '<div class="loading-cell">No se pudo cargar la ficha.</div>';
-    $("detail-measurement-note").textContent = "No se pudieron consultar las lecturas.";
+    const sinAutorizacion = error && error.estado === 401;
+    $("patient-detail-contact").innerHTML = `<div class="loading-cell">${sinAutorizacion ? "No tienes autorización para ver esta ficha." : "No se pudo cargar la ficha."}</div>`;
+    $("detail-measurement-note").textContent = sinAutorizacion ? "Las lecturas requieren autorización." : "No se pudieron consultar las lecturas.";
     $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Vuelve a abrir la ficha para intentarlo de nuevo.</td></tr>';
   }
 }
@@ -581,6 +615,7 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
       body: JSON.stringify(datos)
     });
     const resultado = await response.json().catch(() => ({}));
+    if (response.status === 401) throw new Error("No tienes autorización para modificar este paciente.");
     if (!response.ok) throw new Error(resultado.mensaje || "No se pudieron guardar los cambios. Inténtalo nuevamente.");
     if (!resultado.paciente?.id) throw new Error("No se pudieron guardar los cambios. Inténtalo nuevamente.");
     pacienteDetalleActual = resultado.paciente;
@@ -690,6 +725,7 @@ $("patient-form").addEventListener("submit", async (event) => {
       body: JSON.stringify(datos)
     });
     const resultado = await response.json().catch(() => ({}));
+    if (response.status === 401) throw new Error("No tienes autorización para registrar pacientes.");
     if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : "No se pudo registrar el paciente. Revisa los datos e inténtalo de nuevo."));
     if (!resultado.paciente?.id) throw new Error("No se pudo confirmar el registro. Actualiza la lista para revisarlo.");
     form.reset();
@@ -708,8 +744,8 @@ $("patient-form").addEventListener("submit", async (event) => {
     boton.disabled = false;
   }
 });
-$("refresh-button").addEventListener("click", cargar);
-$("retry-button").addEventListener("click", cargar);
+$("refresh-button").addEventListener("click", () => cargar({ manual: true }));
+$("retry-button").addEventListener("click", () => cargar({ manual: true }));
 document.querySelectorAll(".vital-card").forEach((tarjeta) => tarjeta.addEventListener("click", () => {
   const tipo = tarjeta.dataset.tipo;
   if (!tipo) return;
