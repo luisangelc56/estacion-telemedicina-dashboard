@@ -1,4 +1,20 @@
-const PALETA = ["#0f6e73", "#1d4e63", "#3d8b84", "#5f8f86", "#245e78", "#4e7c8a", "#8aa39a"];
+const PALETA = ["#3dccc4", "#7eb6e8", "#8ee8e2", "#5aa8b0", "#c4ddd6", "#4f8f9a", "#9ecfc8"];
+function tono(nombre, respaldo) {
+  const raiz = document.body;
+  if (!raiz || typeof getComputedStyle !== "function") return respaldo;
+  const valor = getComputedStyle(raiz).getPropertyValue(nombre).trim();
+  return valor || respaldo;
+}
+function paletaActiva() {
+  return PALETA.map((respaldo, index) => tono(`--chart-${index + 1}`, respaldo));
+}
+function marcarServicio(estado) {
+  const punto = $("api-dot");
+  if (!punto) return;
+  punto.dataset.state = estado;
+  punto.style.background = "";
+  punto.style.boxShadow = "";
+}
 const $ = (id) => document.getElementById(id);
 const resolucionApi = window.TELEMEDICINA_API.resolverApiBase(window.location, window.TELEMEDICINA_CONFIG);
 const API_BASE = resolucionApi.base || "";
@@ -37,16 +53,16 @@ const vistaPacientesVue = window.Vue ? window.Vue.createApp({
 }).mount("#patient-list") : null;
 
 function fecha(valor, opciones = {}) {
-  if (!valor) return "—";
+  if (!valor) return "-";
   const date = new Date(valor);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   const formato = Object.keys(opciones).length ? opciones : { dateStyle: "medium" };
   return new Intl.DateTimeFormat("es-GT", formato).format(date);
 }
 function fechaHora(valor) {
-  if (!valor) return "—";
+  if (!valor) return "-";
   const date = new Date(valor);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("es-GT", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 function fechaLocal(valor) {
@@ -56,7 +72,7 @@ function fechaLocal(valor) {
 }
 function numero(valor) {
   const n = Number(valor);
-  return Number.isFinite(n) ? new Intl.NumberFormat("es-GT", { maximumFractionDigits: 2 }).format(n) : "—";
+  return Number.isFinite(n) ? new Intl.NumberFormat("es-GT", { maximumFractionDigits: 2 }).format(n) : "-";
 }
 function animarContador(id, objetivo) {
   const elemento = $(id);
@@ -141,8 +157,7 @@ function presentarSinSesion() {
   const clasificacion = window.TELEMEDICINA_CONSULTA.clasificarFalloClinico({ codigo: "SESION_REQUERIDA" });
   $("error-banner").hidden = true;
   $("api-status").textContent = clasificacion.servicio;
-  $("api-dot").style.background = "#e9a641";
-  $("api-dot").style.boxShadow = "0 0 0 3px #fff1dc";
+  marcarServicio("restricted");
   escribirPastilla(clasificacion.pastilla, true);
   $("measurement-rows").innerHTML = `<tr><td colspan="5" class="loading-cell">${escapar(clasificacion.mediciones)}</td></tr>`;
   if (vistaPacientesVue) {
@@ -168,9 +183,8 @@ function mostrarFalloDeCarga(error) {
   $("error-banner").hidden = false;
   $("error-banner").classList.toggle("is-restricted", clasificacion.restringido);
   $("api-status").textContent = clasificacion.servicio;
-  $("api-dot").style.background = clasificacion.restringido ? "#e9a641" : "#e47768";
-  $("api-dot").style.boxShadow = clasificacion.restringido ? "0 0 0 3px #fff1dc" : "";
-  escribirPastilla(clasificacion.pastilla, clasificacion.restringido);
+  marcarServicio(clasificacion.restringido ? "restricted" : "down");
+  escribirPastilla(clasificacion.pastilla === "En vivo" ? "No disponible" : clasificacion.pastilla, clasificacion.restringido);
   $("measurement-rows").innerHTML = `<tr><td colspan="5" class="loading-cell">${escapar(clasificacion.mediciones)}</td></tr>`;
   if (vistaPacientesVue) {
     vistaPacientesVue.pacientes = [];
@@ -183,6 +197,8 @@ function mostrarFalloDeCarga(error) {
     $("chart-empty-message").textContent = "Las lecturas clínicas requieren autorización.";
     $("chart-show-all").hidden = true;
     $("updated-at").textContent = "Datos clínicos protegidos";
+  } else {
+    $("updated-at").textContent = "Sin actualización";
   }
   console.error(error);
 }
@@ -231,9 +247,8 @@ async function cargar(opciones = {}) {
     $("error-banner").hidden = true;
     $("error-banner").classList.remove("is-restricted");
     $("api-status").textContent = "Disponible";
-    $("api-dot").style.background = "";
-    $("api-dot").style.boxShadow = "";
-    escribirPastilla("En vivo", false);
+    marcarServicio("up");
+    escribirPastilla("Servicio activo", false);
     $("updated-at").textContent = `Actualizado ${new Intl.DateTimeFormat("es-GT", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`;
     dibujar();
   } catch (error) {
@@ -286,13 +301,13 @@ function dibujar() {
   $("patient-context-help").textContent = pacienteFiltrado
     ? (mediciones.length ? `Viendo las lecturas de ${nombrePaciente(pacienteFiltrado)}.` : `Todavía no hay lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}.`)
     : "Viendo las lecturas de toda la estación. Las mediciones sin paciente aparecen como “Sin asignar”.";
-  $("vitals-caption").textContent = pacienteFiltrado ? `Lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}` : "Lecturas más recientes de toda la estación";
-  $("measurement-caption").textContent = pacienteFiltrado ? `Lecturas de ${nombrePaciente(pacienteFiltrado)} · ${periodoTexto}` : `Mediciones de las ${periodoTexto}`;
+  $("vitals-caption").textContent = pacienteFiltrado ? `Última lectura guardada de ${nombrePaciente(pacienteFiltrado)}. La hora indica si es reciente o histórica.` : "Última lectura guardada de la estación. La hora indica si es reciente o histórica.";
+  $("measurement-caption").textContent = pacienteFiltrado ? `Lecturas guardadas de ${nombrePaciente(pacienteFiltrado)} en las ${periodoTexto}.` : `Lecturas guardadas de las ${periodoTexto}.`;
   $("measurement-foot").textContent = pacienteFiltrado ? `Paciente · ${periodoTexto}` : `Periodo: ${periodoTexto}`;
   $("type-select").innerHTML = tipos.length ? tipos.map((tipo) => `<option value="${escapar(tipo)}">${escapar(tipo)}</option>`).join("") : '<option value="">Sin lecturas en este periodo</option>';
   $("type-select").value = tipoActual;
   const ultima = mediciones[0];
-  $("last-reading").textContent = ultima ? `${numero(ultima.valor)} ${ultima.unidad || ""}` : "—";
+  $("last-reading").textContent = ultima ? `${numero(ultima.valor)} ${ultima.unidad || ""}` : "-";
   $("last-reading-time").textContent = ultima ? `${ultima.tipo} · ${fechaHora(ultima.registrado_en)}` : "Sin lecturas registradas";
   const estadoLectura = $("last-reading-status");
   const antiguedad = ultima ? antiguedadLectura(ultima.registrado_en) : { estado: "unknown", texto: "" };
@@ -318,12 +333,16 @@ function dibujarSignosVitales() {
   const rmssd = mediciones.find((m) => /rmssd|hrv|variabilidad/.test(normalizarTipo(m.tipo)));
   const actualizarTarjeta = (id, lectura, valorId, unidadId, tiempoId, unidadPredeterminada, nombreMetrica) => {
     const tarjeta = $(id);
+    const tiempo = $(tiempoId);
+    const edad = lectura ? antiguedadLectura(lectura.registrado_en) : { estado: "unknown", texto: "" };
+    const marca = edad.estado === "fresh" ? "Lectura reciente" : edad.estado === "stale" ? "Lectura histórica" : edad.estado === "future" ? "Fecha no válida" : "Sin fecha de lectura";
     tarjeta.disabled = !lectura;
     tarjeta.dataset.tipo = lectura?.tipo || "";
-    $(valorId).textContent = lectura ? numero(lectura.valor) : "—";
+    $(valorId).textContent = lectura ? numero(lectura.valor) : "-";
     $(unidadId).textContent = lectura?.unidad || unidadPredeterminada;
-    $(tiempoId).textContent = lectura ? `Última lectura · ${fechaHora(lectura.registrado_en)}` : "Esperando medición";
-    tarjeta.setAttribute("aria-label", lectura ? `${lectura.tipo}: ${numero(lectura.valor)} ${lectura.unidad || unidadPredeterminada}. Pulsa para ver la tendencia.` : `Sin lecturas de ${nombreMetrica}`);
+    tiempo.textContent = lectura ? `${marca}. ${fechaHora(lectura.registrado_en)}` : "Sin lectura guardada";
+    tiempo.dataset.state = lectura ? edad.estado : "unknown";
+    tarjeta.setAttribute("aria-label", lectura ? `${lectura.tipo}: ${numero(lectura.valor)} ${lectura.unidad || unidadPredeterminada}. ${marca}. ${fechaHora(lectura.registrado_en)}. Pulsa para ver la tendencia.` : `Sin lecturas guardadas de ${nombreMetrica}`);
     tarjeta.setAttribute("aria-pressed", String(Boolean(lectura && lectura.tipo === tipoActual)));
     tarjeta.classList.toggle("selected", Boolean(lectura && lectura.tipo === tipoActual));
   };
@@ -347,7 +366,9 @@ function dibujarTabla() {
   }
   $("measurement-rows").innerHTML = mediciones.slice(0, 6).map((m) => {
     const paciente = pacientesPorId.get(String(m.paciente_id));
-    return `<tr><td><span class="type-cell"><i class="type-dot"></i>${escapar(m.tipo)}</span></td><td class="patient-ref">${escapar(nombrePaciente(paciente))}</td><td class="value-cell">${escapar(numero(m.valor))} ${escapar(m.unidad)}</td><td>${escapar(fechaHora(m.registrado_en))}</td><td><span class="table-status">Recibida</span></td></tr>`;
+    const edad = antiguedadLectura(m.registrado_en);
+    const marca = edad.estado === "fresh" ? "Reciente" : edad.estado === "stale" ? "Histórica" : edad.estado === "future" ? "Fecha no válida" : "Sin fecha";
+    return `<tr><td><span class="type-cell"><i class="type-dot"></i>${escapar(m.tipo)}</span></td><td class="patient-ref">${escapar(nombrePaciente(paciente))}</td><td class="value-cell">${escapar(numero(m.valor))} ${escapar(m.unidad)}</td><td>${escapar(fechaHora(m.registrado_en))}</td><td><span class="table-status" data-state="${edad.estado}">${marca}</span></td></tr>`;
   }).join("");
 }
 function dibujarPacientes() {
@@ -454,9 +475,9 @@ async function mostrarDetallePaciente(id) {
   $("patient-detail-name").textContent = inicial ? nombrePaciente(inicial) : "Cargando paciente…";
   $("patient-detail-id").textContent = `Paciente ${idPaciente}`;
   $("patient-detail-contact").innerHTML = '<div class="loading-cell">Cargando datos del paciente…</div>';
-  $("detail-reading-count").textContent = "—";
-  $("detail-type-count").textContent = "—";
-  $("detail-last-reading").textContent = "—";
+  $("detail-reading-count").textContent = "-";
+  $("detail-type-count").textContent = "-";
+  $("detail-last-reading").textContent = "-";
   $("detail-measurement-note").textContent = "Consultando las últimas lecturas…";
   $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Cargando…</td></tr>';
   if (!dialogo.open) dialogo.showModal();
@@ -523,20 +544,21 @@ function dibujarDonut(tipos, porTipo) {
   const total = mediciones.length;
   $("donut-total").textContent = numero(total);
   if (!total) {
-    $("donut").style.background = "conic-gradient(#edf0f5 0% 100%)";
+    $("donut").style.background = `conic-gradient(${tono("--chart-empty", "#1e4650")} 0% 100%)`;
     $("legend-list").innerHTML = '<span class="muted">Sin datos</span>';
     return;
   }
+  const colores = paletaActiva();
   let cursor = 0;
   const segmentos = tipos.map((tipo, index) => {
     const siguiente = cursor + porTipo.get(tipo) / total * 100;
-    const tramo = `${PALETA[index % PALETA.length]} ${cursor}% ${siguiente}%`;
+    const tramo = `${colores[index % colores.length]} ${cursor}% ${siguiente}%`;
     cursor = siguiente;
     return tramo;
   });
   $("donut").style.background = `conic-gradient(${segmentos.join(",")})`;
-  $("legend-list").innerHTML = tipos.slice(0, 5).map((tipo, index) => `<div class="legend-item"><i style="background:${PALETA[index % PALETA.length]}"></i><span title="${escapar(tipo)}">${escapar(tipo)}</span><strong>${porTipo.get(tipo)}</strong></div>`).join("");
-  if (tipos.length > 5) $("legend-list").insertAdjacentHTML("beforeend", `<div class="legend-item"><i style="background:#c9cdd7"></i><span>Otros</span><strong>${tipos.slice(5).reduce((suma, tipo) => suma + porTipo.get(tipo), 0)}</strong></div>`);
+  $("legend-list").innerHTML = tipos.slice(0, 5).map((tipo, index) => `<div class="legend-item"><i style="background:${colores[index % colores.length]}"></i><span title="${escapar(tipo)}">${escapar(tipo)}</span><strong>${porTipo.get(tipo)}</strong></div>`).join("");
+  if (tipos.length > 5) $("legend-list").insertAdjacentHTML("beforeend", `<div class="legend-item"><i style="background:${tono("--chart-other", "#5f7f86")}"></i><span>Otros</span><strong>${tipos.slice(5).reduce((suma, tipo) => suma + porTipo.get(tipo), 0)}</strong></div>`);
 }
 function dibujarGrafica() {
   const svg = $("chart");
@@ -544,12 +566,12 @@ function dibujarGrafica() {
   const filasPorSerie = comparacionActiva
     ? medicionesComparacion.map((lecturas, index) => ({
       nombre: porPaciente.get(pacientesComparacion[index]) || `Paciente ${index + 1}`,
-      color: index === 0 ? "#0f6e73" : "#1d4e63",
+      color: index === 0 ? tono("--chart-1", "#3dccc4") : tono("--chart-2", "#7eb6e8"),
       filas: seleccionarPuntos(lecturas.filter((m) => m.tipo === tipoActual && Number.isFinite(Number(m.valor))))
     }))
     : [{
       nombre: tipoActual || "Mediciones",
-      color: "#0f6e73",
+      color: tono("--chart-1", "#3dccc4"),
       filas: seleccionarPuntos(mediciones.filter((m) => m.tipo === tipoActual && Number.isFinite(Number(m.valor))))
     }];
   const valores = filasPorSerie.flatMap((serie) => serie.filas.map((fila) => Number(fila.valor)));
@@ -557,7 +579,7 @@ function dibujarGrafica() {
     svg.innerHTML = "";
     $("chart-wrap").hidden = true;
     $("chart-empty").hidden = false;
-    $("chart-latest").textContent = "—";
+    $("chart-latest").textContent = "-";
     const periodoLegible = { "24h": "las últimas 24 horas", "7d": "los últimos 7 días", "30d": "los últimos 30 días" }[periodoActual] || "el periodo seleccionado";
     $("chart-unit").textContent = `Sin lecturas en ${periodoLegible}`;
     const sinLecturasComparables = comparacionActiva && mediciones.length > 0;
@@ -585,7 +607,7 @@ function dibujarGrafica() {
   for (let i = 0; i < 4; i++) {
     const y = y0 + i * (y1 - y0) / 3;
     const val = alto - i * (alto - bajo) / 3;
-    markup += `<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="#edf0f5" stroke-dasharray="3 4"/><text x="0" y="${y + 3}" fill="#a2a8b5" font-size="9">${escapar(numero(val))}</text>`;
+    markup += `<line x1="${x0}" x2="${x1}" y1="${y}" y2="${y}" stroke="${tono("--chart-grid", "#1e4650")}" stroke-dasharray="3 4"/><text x="0" y="${y + 4}" fill="${tono("--chart-axis", "#b7d6d6")}" font-size="13">${escapar(numero(val))}</text>`;
   }
   filasPorSerie.forEach((serie, serieIndex) => {
     if (!serie.filas.length) return;
@@ -605,25 +627,25 @@ function dibujarGrafica() {
       const paciente = comparacionActiva ? serie.nombre : nombrePaciente(pacientes.find((persona) => String(persona.id) === String(p.fila.paciente_id)));
       const hora = fechaHora(p.fila.registrado_en);
       const etiqueta = `${numero(p.value)} ${p.fila.unidad || ""} · ${hora} · ${paciente}`;
-      markup += `<circle cx="${p.x}" cy="${p.y}" r="3.1" fill="#fff" stroke="${serie.color}" style="--series-color:${serie.color}" stroke-width="2" tabindex="0" role="img" aria-label="${escapar(etiqueta)}" data-index="${index}" data-value="${escapar(numero(p.value))}" data-unit="${escapar(p.fila.unidad || "")}" data-time="${escapar(hora)}" data-patient="${escapar(comparacionActiva ? serie.nombre : "")}"><title>${escapar(etiqueta)}</title></circle>`;
+      markup += `<circle cx="${p.x}" cy="${p.y}" r="3.4" fill="${tono("--chart-point", "#e7f4f2")}" stroke="${serie.color}" style="--series-color:${serie.color}" stroke-width="2" tabindex="0" role="img" aria-label="${escapar(etiqueta)}" data-index="${index}" data-value="${escapar(numero(p.value))}" data-unit="${escapar(p.fila.unidad || "")}" data-time="${escapar(hora)}" data-patient="${escapar(comparacionActiva ? serie.nombre : "")}"><title>${escapar(etiqueta)}</title></circle>`;
     });
   });
   const ticks = [tiempoMin, (tiempoMin + tiempoMax) / 2, tiempoMax];
   const formatoTick = periodoActual === "24h" ? { hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "short" };
   ticks.forEach((tiempo, index) => {
     const x = x0 + index * (x1 - x0) / 2;
-    markup += `<text x="${x}" y="${y1 + 18}" text-anchor="middle" fill="#a2a8b5" font-size="9">${escapar(new Intl.DateTimeFormat("es-GT", formatoTick).format(new Date(tiempo)))}</text>`;
+    markup += `<text x="${x}" y="${y1 + 22}" text-anchor="middle" fill="${tono("--chart-axis", "#b7d6d6")}" font-size="13">${escapar(new Intl.DateTimeFormat("es-GT", formatoTick).format(new Date(tiempo)))}</text>`;
   });
   svg.innerHTML = markup;
   const etiquetaUnidad = filasPorSerie.flatMap((serie) => serie.filas)[0]?.unidad || "";
   if (comparacionActiva) {
     const ultimas = filasPorSerie.map((serie) => serie.filas[serie.filas.length - 1]);
-    $("chart-latest").textContent = ultimas.map((fila) => fila ? numero(fila.valor) : "—").join(" / ");
+    $("chart-latest").textContent = ultimas.map((fila) => fila ? numero(fila.valor) : "-").join(" / ");
     $("chart-unit").textContent = `${etiquetaUnidad} · ${periodoActual}`;
     $("chart-legend").innerHTML = filasPorSerie.map((serie) => `<span class="legend-series"><i style="background:${serie.color}"></i>${escapar(serie.nombre)}</span>`).join("");
   } else {
     const reciente = filasPorSerie[0].filas[filasPorSerie[0].filas.length - 1];
-    $("chart-latest").textContent = reciente ? `${numero(reciente.valor)} ${reciente.unidad || ""}` : "—";
+    $("chart-latest").textContent = reciente ? `${numero(reciente.valor)} ${reciente.unidad || ""}` : "-";
     $("chart-unit").textContent = `Última lectura · ${fechaHora(reciente.registrado_en)}`;
     $("chart-legend").innerHTML = `<i></i><span id="chart-label">${escapar(tipoActual || "Mediciones")}</span>`;
   }

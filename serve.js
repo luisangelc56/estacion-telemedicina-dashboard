@@ -23,6 +23,7 @@ const ARCHIVOS = new Map([
   ["dashboard-controls.css", "text/css; charset=utf-8"],
   ["informes-demo.css", "text/css; charset=utf-8"],
   ["clinical.css", "text/css; charset=utf-8"],
+  ["monitor.css", "text/css; charset=utf-8"],
   ["informes-demo.js", "text/javascript; charset=utf-8"]
 ]);
 

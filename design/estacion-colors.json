@@ -1,0 +1,45 @@
+{
+  "$description": "Nocturnal palette for the telemedicine station. Dark is the only product theme. Light and dark checks use the same pairs.",
+  "semantic": {
+    "text": {
+      "primary": { "$type": "color", "$value": "#e7f4f2" },
+      "secondary": { "$type": "color", "$value": "#b7d6d6" },
+      "tertiary": { "$type": "color", "$value": "#8fb8bd" },
+      "link": { "$type": "color", "$value": "#8ee8e2" },
+      "on-action": { "$type": "color", "$value": "#062226" }
+    },
+    "surface": {
+      "page": { "$type": "color", "$value": "#071418" },
+      "card": { "$type": "color", "$value": "#102830" },
+      "raised": { "$type": "color", "$value": "#173944" }
+    },
+    "action": {
+      "primary": { "$type": "color", "$value": "#3dccc4" }
+    },
+    "border": {
+      "strong": { "$type": "color", "$value": "#7aa8ae" },
+      "default": { "$type": "color", "$value": "#1e4650" }
+    }
+  },
+  "dark": {
+    "text": {
+      "primary": { "$type": "color", "$value": "#e7f4f2" },
+      "secondary": { "$type": "color", "$value": "#b7d6d6" },
+      "tertiary": { "$type": "color", "$value": "#8fb8bd" },
+      "link": { "$type": "color", "$value": "#8ee8e2" },
+      "on-action": { "$type": "color", "$value": "#062226" }
+    },
+    "surface": {
+      "page": { "$type": "color", "$value": "#071418" },
+      "card": { "$type": "color", "$value": "#102830" },
+      "raised": { "$type": "color", "$value": "#173944" }
+    },
+    "action": {
+      "primary": { "$type": "color", "$value": "#3dccc4" }
+    },
+    "border": {
+      "strong": { "$type": "color", "$value": "#7aa8ae" },
+      "default": { "$type": "color", "$value": "#1e4650" }
+    }
+  }
+}
