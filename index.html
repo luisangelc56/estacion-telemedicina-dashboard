@@ -22,6 +22,7 @@
     <div class="nav-label">ESPACIO DE TRABAJO</div>
     <a class="nav-item active" href="./index.html"><span class="nav-icon" aria-hidden="true"></span>Resumen</a>
     <a class="nav-item" href="#mediciones"><span class="nav-icon" aria-hidden="true"></span>Mediciones</a>
+    <a class="nav-item" href="#sesion-medicion"><span class="nav-icon" aria-hidden="true"></span>Sesión</a>
     <a class="nav-item" href="#pacientes"><span class="nav-icon" aria-hidden="true"></span>Pacientes</a>
     <a class="nav-item" href="#informes"><span class="nav-icon" aria-hidden="true"></span>Informes</a>
     <button class="nav-item nav-action" id="nav-add-patient" type="button"><span class="nav-icon" aria-hidden="true"></span>Registrar paciente</button>
@@ -44,6 +45,18 @@
       </article>
     </section>
     <div class="error-banner" id="error-banner" hidden><span id="error-message">No se pudieron cargar los datos.</span><button id="retry-button">Reintentar</button></div>
+    <section class="panel sesion-medicion" id="sesion-medicion" aria-labelledby="sesion-medicion-heading">
+      <div class="panel-heading"><div><div class="eyebrow">ESTACIÓN</div><h2 id="sesion-medicion-heading">Sesión de medición</h2><p>Las lecturas nuevas del equipo se asocian al paciente elegido. Las lecturas anteriores no cambian.</p></div></div>
+      <p class="sesion-medicion-nota">Los pacientes de esta lista son registros simulados para el congreso. No representan personas reales.</p>
+      <p class="sesion-medicion-aviso" id="sesion-medicion-aviso">El equipo puede reenviar lotes anteriores. Esos lotes no traen hora de captura ni identificador de sesión, así que no se puede saber a qué paciente pertenecían. Si finalizas la sesión o eliges otro paciente, un reintento puede quedar sin asignar o asociarse a la sesión abierta en ese momento. Espera a que terminen los reintentos antes de cambiar de paciente.</p>
+      <div class="sesion-medicion-controles">
+        <label>Paciente registrado<span class="select-wrap"><select id="sesion-medicion-paciente" disabled><option value="">Selecciona un paciente</option></select><span aria-hidden="true">⌄</span></span></label><!-- ds-allow-native-select: el JavaScript y las pruebas dependen del select nativo -->
+        <button class="patient-submit" id="sesion-medicion-iniciar" type="button" disabled>Iniciar medición</button>
+        <button class="patient-detail-secondary" id="sesion-medicion-finalizar" type="button" disabled>Finalizar sesión</button>
+      </div>
+      <p class="sesion-medicion-activa" id="sesion-medicion-activa">No hay una sesión de medición abierta. Las lecturas nuevas quedan sin asignar.</p>
+      <p class="sesion-medicion-estado" id="sesion-medicion-estado" role="status" aria-live="polite" data-state="idle" hidden></p>
+    </section>
     <div class="clinical-overview">
     <section class="vitals-section" id="vitals-section" aria-labelledby="vitals-heading">
       <div class="vitals-heading"><div><div class="eyebrow">ÚLTIMA LECTURA GUARDADA</div><h2 id="vitals-heading">Signos vitales</h2><p id="vitals-caption">La hora de cada lectura indica si es reciente o histórica.</p></div><span class="vitals-live"><i></i> Consulta periódica, no monitor continuo</span></div>

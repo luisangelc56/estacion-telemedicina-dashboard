@@ -39,6 +39,7 @@ async function despachar(request) {
     id: url.searchParams.get("id"),
     periodo: url.searchParams.get("periodo"),
     pacienteId: url.searchParams.get("paciente_id"),
+    accion: url.searchParams.get("accion"),
     claves: [...url.searchParams.keys()],
     body,
     json: esJson,

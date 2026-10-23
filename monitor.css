@@ -836,6 +836,49 @@ body.clinical.is-refreshing .icon-button { opacity: 0.6; }
   body.clinical .main { max-width: 108rem; }
 }
 
+body.clinical .sesion-medicion {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0 var(--space-4) var(--space-4);
+}
+
+body.clinical .sesion-medicion-nota,
+body.clinical .sesion-medicion-aviso,
+body.clinical .sesion-medicion-activa,
+body.clinical .sesion-medicion-estado { margin: 0; }
+
+body.clinical .sesion-medicion-nota,
+body.clinical .sesion-medicion-aviso { color: var(--caution); }
+
+body.clinical .sesion-medicion-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+body.clinical .sesion-medicion-controles label {
+  display: grid;
+  gap: var(--space-2);
+  flex: 1 1 16rem;
+  max-width: 22rem;
+}
+
+body.clinical .sesion-medicion-controles .select-wrap,
+body.clinical .sesion-medicion-controles .select-wrap select {
+  width: 100%;
+  max-width: none;
+}
+
+body.clinical .sesion-medicion-controles :disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+body.clinical .sesion-medicion-estado[data-state="loading"] { color: var(--muted); }
+
+body.clinical .sesion-medicion-estado[data-state="error"] { color: var(--alert); }
+
 @media (prefers-reduced-motion: reduce) {
   body.clinical .vital-card,
   body.clinical .icon-button,

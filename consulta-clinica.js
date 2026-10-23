@@ -53,7 +53,17 @@
       return null;
     }
     const segmentos = url.pathname.split("/").filter(Boolean);
-    if (segmentos.length < 2 || segmentos.length > 3 || segmentos[0] !== "api") return null;
+    if (segmentos.length < 2 || segmentos[0] !== "api") return null;
+    if (segmentos[1] === "estacion") {
+      const params = new URLSearchParams();
+      params.set("recurso", "estacion");
+      const sesion = segmentos.length === 3 && segmentos[2] === "sesion";
+      const finalizar = segmentos.length === 4 && segmentos[2] === "sesion" && segmentos[3] === "finalizar";
+      if ((!sesion && !finalizar) || url.search !== "") return null;
+      if (finalizar) params.set("accion", "finalizar");
+      return `/api/clinico?${params.toString()}`;
+    }
+    if (segmentos.length > 3) return null;
     const recurso = segmentos[1];
     if (recurso !== "pacientes" && recurso !== "mediciones" && recurso !== "informes") return null;
     if (recurso === "informes" && (segmentos.length !== 3 || [...url.searchParams].length > 0)) return null;

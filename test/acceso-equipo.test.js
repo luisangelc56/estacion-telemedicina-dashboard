@@ -208,6 +208,9 @@ test("una sesión vencida se rechaza y las funciones públicas no contienen la c
   assert.match(rutaClinica("/api/informes/15"), /id=15/);
   assert.equal(rutaClinica("/api/informes/15?paciente_id=3"), null);
   assert.equal(rutaClinica("/api/demo/informes/PAC-DEMO-01"), null);
+  assert.equal(rutaClinica("/api/estacion/sesion"), "/api/clinico?recurso=estacion");
+  assert.equal(rutaClinica("/api/estacion/sesion/finalizar"), "/api/clinico?recurso=estacion&accion=finalizar");
+  assert.equal(rutaClinica("/api/estacion/sesion?paciente_id=1"), null);
 
   const publico = ["dashboard.js", "acceso.js", "consulta-clinica.js", "config.public.js", "informes-demo.js", "index.html"];
   for (const nombre of publico) {
@@ -253,4 +256,92 @@ test("las entradas de Vercel exigen sesión antes de hablar con el backend", asy
     process.env = previo;
     reiniciarIntentos();
   }
+});
+
+test("la sesión de medición pasa por el proxy del equipo y no acepta la clave del dispositivo", async () => {
+  reiniciarIntentos();
+  let llamadas = 0;
+  const anonimo = await consultarClinico({
+    method: "POST",
+    recurso: "estacion",
+    claves: ["recurso"],
+    json: true,
+    body: { pacienteId: "1" },
+    origen: "https://panel.example",
+    host: "panel.example",
+    env: ENV,
+    ahora: AHORA,
+    fetchImpl() {
+      llamadas += 1;
+    }
+  });
+  assert.equal(anonimo.status, 401);
+  assert.equal(anonimo.body.codigo, "SESION_REQUERIDA");
+  assert.equal(llamadas, 0);
+
+  const sesion = await manejarSesion(peticionSesion({
+    method: "POST",
+    body: { usuario: ENV.TEAM_USERNAME, contrasena: ENV.TEAM_PASSWORD }
+  }));
+  const alta = await consultarClinico({
+    method: "POST",
+    recurso: "estacion",
+    claves: ["recurso"],
+    json: true,
+    body: { pacienteId: "4" },
+    cookie: cookieDe(sesion),
+    origen: "https://panel.example",
+    host: "panel.example",
+    env: ENV,
+    ahora: AHORA,
+    fetchImpl(destino, opciones) {
+      llamadas += 1;
+      assert.equal(String(destino), "https://backend-de-prueba.example/api/estacion/sesion");
+      assert.equal(opciones.method, "POST");
+      assert.equal(opciones.body, JSON.stringify({ pacienteId: "4" }));
+      assert.equal(opciones.headers.Authorization, `Bearer ${ENV.DASHBOARD_API_KEY}`);
+      assert.equal(opciones.headers["x-device-key"], undefined);
+      return { status: 201, async text() { return JSON.stringify({ ok: true, activa: true, sesion: { pacienteId: "4" } }); } };
+    }
+  });
+  const cierre = await consultarClinico({
+    method: "POST",
+    recurso: "estacion",
+    accion: "finalizar",
+    claves: ["recurso", "accion"],
+    json: true,
+    body: {},
+    cookie: cookieDe(sesion),
+    origen: "https://panel.example",
+    host: "panel.example",
+    env: ENV,
+    ahora: AHORA,
+    fetchImpl(destino, opciones) {
+      assert.equal(String(destino), "https://backend-de-prueba.example/api/estacion/sesion/finalizar");
+      assert.equal(opciones.headers["x-device-key"], undefined);
+      return { status: 200, async text() { return JSON.stringify({ ok: true, activa: false }); } };
+    }
+  });
+  const ajena = await consultarClinico({
+    method: "POST",
+    recurso: "estacion",
+    accion: "otra",
+    claves: ["recurso", "accion"],
+    json: true,
+    body: {},
+    cookie: cookieDe(sesion),
+    origen: "https://panel.example",
+    host: "panel.example",
+    env: ENV,
+    ahora: AHORA,
+    fetchImpl() {
+      llamadas += 1;
+    }
+  });
+  assert.equal(alta.status, 201);
+  assert.equal(cierre.status, 200);
+  assert.equal(ajena.status, 400);
+  assert.equal(ajena.body.codigo, "SOLICITUD_INVALIDA");
+  assert.equal(llamadas, 1);
+  assert.equal(JSON.stringify(alta).includes(ENV.DASHBOARD_API_KEY), false);
 });

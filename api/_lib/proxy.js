@@ -36,6 +36,24 @@ function construirDestino(peticion) {
   const recurso = peticion.recurso;
   const method = peticion.method;
   const id = peticion.id;
+  if (recurso === "estacion") {
+    if (method !== "GET" && method !== "POST") {
+      return { error: { status: 405, codigo: "METODO_NO_PERMITIDO", mensaje: "Método no permitido." } };
+    }
+    const claves = Array.isArray(peticion.claves) ? peticion.claves : [];
+    if (claves.some((clave) => clave !== "recurso" && clave !== "accion")) {
+      return { error: { status: 400, codigo: "SOLICITUD_INVALIDA", mensaje: "La consulta incluye parámetros no permitidos." } };
+    }
+    if (peticion.accion && peticion.accion !== "finalizar") {
+      return { error: { status: 400, codigo: "SOLICITUD_INVALIDA", mensaje: "La acción no es válida." } };
+    }
+    if (method === "GET" && peticion.accion) {
+      return { error: { status: 400, codigo: "SOLICITUD_INVALIDA", mensaje: "La consulta incluye parámetros no permitidos." } };
+    }
+    const destino = new URL(`${base}/api/estacion/sesion`);
+    if (method === "POST" && peticion.accion === "finalizar") destino.pathname += "/finalizar";
+    return { destino };
+  }
   if (recurso !== "pacientes" && recurso !== "mediciones" && recurso !== "informes") {
     return { error: { status: 404, codigo: "RUTA_NO_PERMITIDA", mensaje: "Esa consulta no está permitida." } };
   }

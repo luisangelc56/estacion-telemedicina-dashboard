@@ -37,6 +37,8 @@ let medicionesComparacion = [[], []];
 let cargando = false;
 let consultaClinicaBloqueada = false;
 let sesionActiva = false;
+let sesionMedicion = null;
+let sesionMedicionOcupada = false;
 let pacienteDetalleActual = null;
 let lecturasDetalleActuales = [];
 let secuenciaDetallePaciente = 0;
@@ -124,6 +126,120 @@ function notificarPacientesInforme() {
   const recibir = window.TELEMEDICINA_INFORMES && window.TELEMEDICINA_INFORMES.recibirPacientes;
   if (typeof recibir === "function") recibir(lista);
 }
+function idMedicionValido(id) {
+  const texto = String(id || "");
+  return /^[1-9]\d*$/.test(texto) && !/PAC-DEMO/i.test(texto);
+}
+function pintarSelectorSesion() {
+  const select = $("sesion-medicion-paciente");
+  if (!select) return;
+  const elegido = select.value;
+  const opciones = pacientes.filter((paciente) => idMedicionValido(paciente.id));
+  select.innerHTML = '<option value="">Selecciona un paciente</option>' + opciones.map((paciente) => `<option value="${escapar(paciente.id)}">${escapar(nombrePaciente(paciente))}</option>`).join("");
+  select.value = opciones.some((paciente) => String(paciente.id) === elegido) ? elegido : "";
+  actualizarControlesSesion();
+}
+function actualizarControlesSesion() {
+  const select = $("sesion-medicion-paciente");
+  const iniciar = $("sesion-medicion-iniciar");
+  const finalizar = $("sesion-medicion-finalizar");
+  if (!select || !iniciar || !finalizar) return;
+  const conEquipo = sesionActiva === true;
+  select.disabled = !conEquipo || sesionMedicionOcupada || Boolean(sesionMedicion);
+  iniciar.disabled = !conEquipo || sesionMedicionOcupada || Boolean(sesionMedicion) || !idMedicionValido(select.value);
+  finalizar.disabled = !conEquipo || sesionMedicionOcupada || !sesionMedicion;
+}
+function pintarSesionMedicion() {
+  const activa = $("sesion-medicion-activa");
+  if (!activa) return;
+  if (!sesionActiva) {
+    activa.textContent = "Inicia sesión del equipo para consultar la sesión de medición.";
+  } else if (!sesionMedicion) {
+    activa.textContent = "No hay una sesión de medición abierta. Las lecturas nuevas quedan sin asignar.";
+  } else {
+    activa.textContent = `Sesión de medición abierta para ${sesionMedicion.pacienteNombre || "el paciente seleccionado"} desde ${fechaHora(sesionMedicion.iniciadaEn)}.`;
+  }
+  actualizarControlesSesion();
+}
+function olvidarSesionMedicionLocal() {
+  sesionMedicion = null;
+  mostrarEstadoSesion("idle", "");
+  pintarSesionMedicion();
+}
+function mostrarEstadoSesion(estado, mensaje) {
+  const nodo = $("sesion-medicion-estado");
+  if (!nodo) return;
+  nodo.dataset.state = estado;
+  nodo.textContent = mensaje || "";
+  nodo.hidden = !mensaje;
+}
+async function consultarJsonClinico(url, opciones = {}) {
+  const destino = window.TELEMEDICINA_CONSULTA.rutaClinica(url);
+  if (!destino) throw new Error("Consulta no permitida");
+  const respuesta = await fetch(destino, {
+    method: opciones.method || "GET",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      ...(opciones.body ? { "Content-Type": "application/json" } : {})
+    },
+    body: opciones.body ? JSON.stringify(opciones.body) : undefined
+  });
+  const cuerpo = await respuesta.json().catch(() => ({}));
+  return { status: respuesta.status, cuerpo };
+}
+async function refrescarSesionMedicion() {
+  if (!sesionActiva) {
+    sesionMedicion = null;
+    pintarSesionMedicion();
+    return;
+  }
+  try {
+    const resultado = await consultarJsonClinico("/api/estacion/sesion");
+    if (resultado.status !== 200 || !resultado.cuerpo || resultado.cuerpo.ok !== true) {
+      mostrarEstadoSesion("error", (resultado.cuerpo && resultado.cuerpo.mensaje) || "No se pudo consultar la sesión de medición.");
+      return;
+    }
+    sesionMedicion = resultado.cuerpo.activa ? resultado.cuerpo.sesion : null;
+    pintarSesionMedicion();
+  } catch {
+    mostrarEstadoSesion("error", "No se pudo consultar la sesión de medición.");
+  }
+}
+async function cambiarSesionMedicion(accion) {
+  if (sesionMedicionOcupada || !sesionActiva) return;
+  const select = $("sesion-medicion-paciente");
+  if (accion !== "finalizar" && !idMedicionValido(select && select.value)) return;
+  sesionMedicionOcupada = true;
+  actualizarControlesSesion();
+  mostrarEstadoSesion("loading", accion === "finalizar" ? "Finalizando la sesión de medición…" : "Iniciando la sesión de medición…");
+  try {
+    const resultado = await consultarJsonClinico(
+      accion === "finalizar" ? "/api/estacion/sesion/finalizar" : "/api/estacion/sesion",
+      { method: "POST", body: accion === "finalizar" ? {} : { pacienteId: select.value } }
+    );
+    if (resultado.status === 409 && resultado.cuerpo && resultado.cuerpo.codigo === "SESION_OCUPADA" && resultado.cuerpo.sesion) {
+      sesionMedicion = resultado.cuerpo.sesion;
+      pintarSesionMedicion();
+      mostrarEstadoSesion("error", `${resultado.cuerpo.mensaje} ${resultado.cuerpo.advertencia || ""}`.trim());
+      return;
+    }
+    if (!resultado.cuerpo || resultado.cuerpo.ok !== true) {
+      mostrarEstadoSesion("error", (resultado.cuerpo && resultado.cuerpo.mensaje) || "No se pudo actualizar la sesión de medición.");
+      return;
+    }
+    sesionMedicion = accion === "finalizar" ? null : resultado.cuerpo.sesion;
+    pintarSesionMedicion();
+    const aviso = resultado.cuerpo.advertencia || "";
+    mostrarEstadoSesion("ok", `${resultado.cuerpo.mensaje || "Sesión de medición actualizada."} ${aviso}`.trim());
+    if (sesionActiva) await cargar({ manual: true });
+  } catch {
+    mostrarEstadoSesion("error", "No se pudo actualizar la sesión de medición.");
+  } finally {
+    sesionMedicionOcupada = false;
+    actualizarControlesSesion();
+  }
+}
 function escribirPastilla(texto, restringido) {
   const etiqueta = $("live-label");
   if (etiqueta) etiqueta.textContent = texto;
@@ -171,6 +287,7 @@ function presentarSinSesion() {
   $("chart-show-all").hidden = true;
   $("updated-at").textContent = "Esperando acceso del equipo";
   notificarPacientesInforme();
+  olvidarSesionMedicionLocal();
 }
 function mostrarFalloDeCarga(error) {
   const clasificacion = window.TELEMEDICINA_CONSULTA.clasificarFalloClinico(error);
@@ -251,6 +368,7 @@ async function cargar(opciones = {}) {
     escribirPastilla("Servicio activo", false);
     $("updated-at").textContent = `Actualizado ${new Intl.DateTimeFormat("es-GT", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`;
     dibujar();
+    await refrescarSesionMedicion();
   } catch (error) {
     mostrarFalloDeCarga(error);
   } finally {
@@ -259,6 +377,7 @@ async function cargar(opciones = {}) {
     button.removeAttribute("aria-busy");
     document.body.classList.remove("is-refreshing");
     cargando = false;
+    actualizarControlesSesion();
   }
 }
 function dibujar() {
@@ -318,6 +437,7 @@ function dibujar() {
   dibujarDonut(tipos, porTipo);
   dibujarSignosVitales();
   dibujarGrafica();
+  pintarSelectorSesion();
 }
 function normalizarTipo(tipo) {
   return String(tipo || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -995,6 +1115,9 @@ $("access-form").addEventListener("submit", async (event) => {
     boton.disabled = false;
   }
 });
+$("sesion-medicion-iniciar").addEventListener("click", () => cambiarSesionMedicion("iniciar"));
+$("sesion-medicion-finalizar").addEventListener("click", () => cambiarSesionMedicion("finalizar"));
+$("sesion-medicion-paciente").addEventListener("change", actualizarControlesSesion);
 $("logout-button").addEventListener("click", async () => {
   try {
     await fetch("/api/sesion", { method: "DELETE", credentials: "same-origin" });
