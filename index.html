@@ -108,7 +108,7 @@
       <div id="informes-app" v-cloak>
         <form class="informes-controls" @submit.prevent="solicitar">
           <label>Seleccionar paciente
-            <span class="select-wrap"><select v-model="pacienteId" :disabled="fase === 'cargando' || fase === 'consultando'">
+            <span class="select-wrap"><select :key="claveSelector" v-model="pacienteId" :disabled="fase === 'cargando' || fase === 'consultando'">
               <optgroup label="Pacientes de ejemplo">
                 <option v-for="paciente in ejemplos" :key="paciente.id" :value="paciente.id">{{ paciente.nombre }}</option>
               </optgroup>

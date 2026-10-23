@@ -135,3 +135,28 @@ test("traduce 401, 500 y 502 del informe sin tratarlos como falta de datos", () 
   assert.equal(interpretarFallo(401, "NO_AUTORIZADO").fase, "denegado");
   assert.equal(interpretarFallo(502, "RESPUESTA_INVALIDA").fase, "error");
 });
+
+test("el selector conserva los pacientes si el aviso llega antes de montar el informe", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const { combinarPacientes, tomarRegistrados } = require("../informes-demo.js");
+  const registrados = [
+    { id: 1, nombre: "Ana", apellido: "López" },
+    { id: " 2 ", nombre: "Luis" },
+    { id: "3", nombre: "María" },
+    { id: "3", nombre: "Repetida" }
+  ];
+  const raiz = { TELEMEDICINA_REGISTRADOS: registrados };
+  const lista = combinarPacientes(tomarRegistrados(raiz));
+  assert.deepEqual(lista.map((item) => item.id), ["PAC-DEMO-01", "PAC-DEMO-02", "1", "2", "3"]);
+  assert.equal(lista.filter((item) => item.origen === "ejemplo").length, 2);
+  assert.equal(lista.filter((item) => item.origen === "registrado").length, 3);
+
+  const panel = fs.readFileSync(path.join(__dirname, "../dashboard.js"), "utf8");
+  const aviso = panel.slice(panel.indexOf("function notificarPacientesInforme"), panel.indexOf("function escribirPastilla"));
+  assert.ok(aviso.indexOf("TELEMEDICINA_REGISTRADOS") !== -1);
+  assert.ok(aviso.indexOf("TELEMEDICINA_REGISTRADOS") < aviso.indexOf("recibirPacientes"));
+  const informes = fs.readFileSync(path.join(__dirname, "../informes-demo.js"), "utf8");
+  assert.ok(informes.indexOf("tomarRegistrados(window)") < informes.indexOf("aplicacion.mount"));
+  assert.match(informes, /:key="claveSelector"|claveSelector/);
+});

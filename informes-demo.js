@@ -75,8 +75,17 @@
   }
 
   function idRegistrado(pacienteId) {
-    const id = String(pacienteId || "");
+    if (typeof pacienteId === "number") {
+      if (!Number.isInteger(pacienteId) || pacienteId <= 0) return "";
+      return String(pacienteId);
+    }
+    const id = String(pacienteId ?? "").trim();
     return /^[1-9]\d*$/.test(id) ? id : "";
+  }
+
+  function tomarRegistrados(raiz) {
+    const guardados = raiz && raiz.TELEMEDICINA_REGISTRADOS;
+    return Array.isArray(guardados) ? guardados : [];
   }
 
   function nombreRegistrado(paciente) {
@@ -220,7 +229,8 @@
     combinarPacientes,
     conservarSeleccion,
     consultarLecturas,
-    mensajeConsulta
+    mensajeConsulta,
+    tomarRegistrados
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   raiz.TELEMEDICINA_INFORMES = api;
@@ -230,7 +240,7 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
   const informes = window.TELEMEDICINA_INFORMES;
   const aplicacion = window.Vue.createApp({
     data: () => ({
-      pacientes: informes.combinarPacientes([]),
+      pacientes: informes.combinarPacientes(informes.tomarRegistrados(window)),
       pacienteId: "PAC-DEMO-01",
       fase: "inicial",
       mensaje: "Selecciona un paciente y genera el informe.",
@@ -247,6 +257,9 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
       },
       generacionBloqueada() {
         return this.fase === "cargando" || this.fase === "consultando" || this.fase === "sin-datos";
+      },
+      claveSelector() {
+        return this.pacientes.map((paciente) => paciente.id).join("|");
       }
     },
     watch: {
@@ -255,6 +268,8 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
       }
     },
     mounted() {
+      const guardados = informes.tomarRegistrados(window);
+      if (guardados.length) this.recibirPacientes(guardados);
       this.alCambiar();
     },
     methods: {

@@ -103,8 +103,10 @@ function antiguedadLectura(valor) {
   return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "sin actualizar" : "reciente"}` };
 }
 function notificarPacientesInforme() {
+  const lista = sesionActiva ? pacientes : [];
+  window.TELEMEDICINA_REGISTRADOS = lista;
   const recibir = window.TELEMEDICINA_INFORMES && window.TELEMEDICINA_INFORMES.recibirPacientes;
-  if (typeof recibir === "function") recibir(sesionActiva ? pacientes : []);
+  if (typeof recibir === "function") recibir(lista);
 }
 function escribirPastilla(texto, restringido) {
   const etiqueta = $("live-label");
