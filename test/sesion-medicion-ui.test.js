@@ -13,10 +13,11 @@ test("la sección de medición usa pacientes registrados y avisa sobre lecturas 
   const seccion = html.slice(inicio, fin);
   assert.ok(inicio > -1 && fin > inicio);
   assert.match(seccion, /Sesión de medición/);
-  assert.match(seccion, /Iniciar medición/);
+  assert.match(seccion, /Iniciar sesión de medición/);
   assert.match(seccion, /Finalizar sesión/);
-  assert.match(seccion, /registros simulados para el congreso/);
-  assert.match(seccion, /No representan personas reales/);
+  assert.match(seccion, /Entorno de demostración/);
+  assert.match(seccion, /registros de pacientes son ficticios/);
+  assert.match(seccion, /envíos pendientes/);
   assert.match(seccion, /hora de captura/);
   assert.match(seccion, /id="sesion-medicion-paciente"/);
   assert.equal(seccion.includes("PAC-DEMO"), false);
@@ -24,6 +25,8 @@ test("la sección de medición usa pacientes registrados y avisa sobre lecturas 
   assert.match(panel, /idMedicionValido/);
   assert.match(panel, /PAC-DEMO/);
   assert.match(panel, /sesionMedicion/);
+  assert.match(panel, /La sesión de medición se inició correctamente/);
+  assert.equal(panel.includes("cuerpo.advertencia"), false);
   assert.equal(panel.includes("DEVICE_API_KEY"), false);
   assert.equal(panel.includes("DASHBOARD_API_KEY"), false);
   assert.equal(panel.includes("x-device-key"), false);

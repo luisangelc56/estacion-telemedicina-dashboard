@@ -134,10 +134,10 @@ function sesionActual(peticion) {
   const token = leerCookie(peticion.cookie);
   const verificacion = verificar(token, configuracion.secreto, ahora);
   if (verificacion.estado === "expirada") {
-    return { status: 401, body: { ok: false, codigo: "SESION_EXPIRADA", mensaje: "La sesión expiró. Vuelve a iniciar sesión." } };
+    return { status: 401, body: { ok: false, codigo: "SESION_EXPIRADA", mensaje: "La sesión del equipo expiró. Vuelva a iniciar sesión." } };
   }
   if (verificacion.estado !== "valida" || verificacion.usuario !== configuracion.usuario) {
-    return { status: 401, body: { ok: false, codigo: "SESION_REQUERIDA", mensaje: "Inicia sesión para consultar los datos clínicos." } };
+    return { status: 401, body: { ok: false, codigo: "SESION_REQUERIDA", mensaje: "Inicie sesión para consultar los datos clínicos." } };
   }
   return { status: 200, body: { ok: true, usuario: verificacion.usuario }, configuracion };
 }
@@ -169,7 +169,7 @@ async function manejarSesion(peticion) {
   const contrasena = cuerpo && typeof cuerpo.contrasena === "string" ? cuerpo.contrasena : "";
   const ip = direccion(peticion.reenviado);
   if (bloqueado(ip, usuario, ahora)) {
-    return { status: 429, body: { ok: false, codigo: "LIMITE_INTENTOS", mensaje: "Demasiados intentos. Espera unos minutos." } };
+    return { status: 429, body: { ok: false, codigo: "LIMITE_INTENTOS", mensaje: "Demasiados intentos. Espere unos minutos e inténtelo de nuevo." } };
   }
   const configuracion = leerConfiguracion(env);
   if (!configuracion) {

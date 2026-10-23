@@ -49,7 +49,7 @@ const vistaPacientesVue = window.Vue ? window.Vue.createApp({
     iniciales(paciente) {
       return this.nombre(paciente).split(/\s+/).slice(0, 2).map((parte) => parte.charAt(0)).join("").toUpperCase();
     },
-    contacto: (paciente) => `ID ${paciente.id} · ${paciente.correo || paciente.telefono || "Sin contacto"}`,
+    contacto: (paciente) => `Identificador ${paciente.id} · ${paciente.correo || paciente.telefono || "Sin contacto"}`,
     fechaRegistro: (valor) => fecha(valor, { year: "numeric" })
   }
 }).mount("#patient-list") : null;
@@ -112,13 +112,13 @@ function antiguedadLectura(valor) {
   if (!Number.isFinite(fechaLectura)) return { estado: "unknown", texto: "Fecha no disponible" };
   const diferencia = Date.now() - fechaLectura;
   if (diferencia < -60_000) return { estado: "future", texto: "Fecha no válida" };
-  if (diferencia <= 60_000) return { estado: "fresh", texto: "Recibida hace menos de 1 min · reciente" };
+  if (diferencia <= 60_000) return { estado: "fresh", texto: "Hace menos de 1 min · reciente" };
   const minutos = Math.floor(diferencia / 60_000);
   const horas = Math.floor(minutos / 60);
   const dias = Math.floor(horas / 24);
   const tiempo = dias ? `Hace ${dias} ${dias === 1 ? "día" : "días"}` : horas ? `Hace ${horas} ${horas === 1 ? "hora" : "horas"}` : `Hace ${minutos} ${minutos === 1 ? "minuto" : "minutos"}`;
   const desactualizada = diferencia > 15 * 60_000;
-  return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "sin actualizar" : "reciente"}` };
+  return { estado: desactualizada ? "stale" : "fresh", texto: `${tiempo} · ${desactualizada ? "histórica" : "reciente"}` };
 }
 function notificarPacientesInforme() {
   const lista = sesionActiva ? pacientes : [];
@@ -135,7 +135,7 @@ function pintarSelectorSesion() {
   if (!select) return;
   const elegido = select.value;
   const opciones = pacientes.filter((paciente) => idMedicionValido(paciente.id));
-  select.innerHTML = '<option value="">Selecciona un paciente</option>' + opciones.map((paciente) => `<option value="${escapar(paciente.id)}">${escapar(nombrePaciente(paciente))}</option>`).join("");
+  select.innerHTML = '<option value="">Seleccione un paciente</option>' + opciones.map((paciente) => `<option value="${escapar(paciente.id)}">${escapar(nombrePaciente(paciente))}</option>`).join("");
   select.value = opciones.some((paciente) => String(paciente.id) === elegido) ? elegido : "";
   actualizarControlesSesion();
 }
@@ -149,17 +149,56 @@ function actualizarControlesSesion() {
   iniciar.disabled = !conEquipo || sesionMedicionOcupada || Boolean(sesionMedicion) || !idMedicionValido(select.value);
   finalizar.disabled = !conEquipo || sesionMedicionOcupada || !sesionMedicion;
 }
+function fechaSesion(valor) {
+  const date = new Date(valor);
+  if (!valor || Number.isNaN(date.getTime())) return "";
+  const dia = new Intl.DateTimeFormat("es-GT", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+  const hora = new Intl.DateTimeFormat("es-GT", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+  return `${dia} a las ${hora}`;
+}
 function pintarSesionMedicion() {
   const activa = $("sesion-medicion-activa");
-  if (!activa) return;
-  if (!sesionActiva) {
-    activa.textContent = "Inicia sesión del equipo para consultar la sesión de medición.";
-  } else if (!sesionMedicion) {
-    activa.textContent = "No hay una sesión de medición abierta. Las lecturas nuevas quedan sin asignar.";
-  } else {
-    activa.textContent = `Sesión de medición abierta para ${sesionMedicion.pacienteNombre || "el paciente seleccionado"} desde ${fechaHora(sesionMedicion.iniciadaEn)}.`;
+  const resumen = $("sesion-medicion-resumen");
+  const meta = $("sesion-medicion-meta");
+  if (!activa || !resumen) return;
+  let principal = "Inicie sesión del equipo para consultar la sesión de medición.";
+  let secundaria = "";
+  let estado = "equipo";
+  if (sesionActiva && !sesionMedicion) {
+    principal = "No hay una sesión de medición activa.";
+    secundaria = "Las nuevas mediciones permanecen sin asignar.";
+    estado = "inactiva";
+  } else if (sesionActiva && sesionMedicion) {
+    const nombre = sesionMedicion.pacienteNombre || "el paciente seleccionado";
+    const inicio = fechaSesion(sesionMedicion.iniciadaEn);
+    principal = `Sesión activa · ${nombre}`;
+    secundaria = inicio ? `Iniciada el ${inicio}` : "Hora de inicio no disponible.";
+    estado = "activa";
+  }
+  activa.dataset.state = estado;
+  resumen.textContent = principal;
+  if (meta) {
+    meta.textContent = secundaria;
+    meta.hidden = !secundaria;
   }
   actualizarControlesSesion();
+}
+function mensajeSesionMedicion(accion, resultado) {
+  const cuerpo = resultado && resultado.cuerpo;
+  const codigo = cuerpo && cuerpo.codigo;
+  if (codigo === "SESION_OCUPADA") return "Ya hay una sesión de medición activa. Finalícela antes de iniciar otra.";
+  if (codigo === "SIN_SESION") return "No hay una sesión de medición activa.";
+  if (codigo === "IDENTIFICADOR_INVALIDO") return "Seleccione un paciente registrado.";
+  if (codigo === "PACIENTE_NO_ENCONTRADO") return "No se encontró el paciente seleccionado.";
+  if (codigo === "SESION_REQUERIDA" || codigo === "SESION_EXPIRADA" || (resultado && resultado.status === 401)) {
+    return window.TELEMEDICINA_ACCESO.mensajeDeSesion(codigo || "SESION_REQUERIDA");
+  }
+  if (cuerpo && cuerpo.ok === true) {
+    return accion === "finalizar"
+      ? "La sesión de medición finalizó correctamente."
+      : "La sesión de medición se inició correctamente.";
+  }
+  return "No se pudo actualizar la sesión de medición. Inténtelo de nuevo.";
 }
 function olvidarSesionMedicionLocal() {
   sesionMedicion = null;
@@ -197,13 +236,13 @@ async function refrescarSesionMedicion() {
   try {
     const resultado = await consultarJsonClinico("/api/estacion/sesion");
     if (resultado.status !== 200 || !resultado.cuerpo || resultado.cuerpo.ok !== true) {
-      mostrarEstadoSesion("error", (resultado.cuerpo && resultado.cuerpo.mensaje) || "No se pudo consultar la sesión de medición.");
+      mostrarEstadoSesion("error", "No se pudo consultar la sesión de medición. Inténtelo de nuevo.");
       return;
     }
     sesionMedicion = resultado.cuerpo.activa ? resultado.cuerpo.sesion : null;
     pintarSesionMedicion();
   } catch {
-    mostrarEstadoSesion("error", "No se pudo consultar la sesión de medición.");
+    mostrarEstadoSesion("error", "No se pudo consultar la sesión de medición. Inténtelo de nuevo.");
   }
 }
 async function cambiarSesionMedicion(accion) {
@@ -221,20 +260,19 @@ async function cambiarSesionMedicion(accion) {
     if (resultado.status === 409 && resultado.cuerpo && resultado.cuerpo.codigo === "SESION_OCUPADA" && resultado.cuerpo.sesion) {
       sesionMedicion = resultado.cuerpo.sesion;
       pintarSesionMedicion();
-      mostrarEstadoSesion("error", `${resultado.cuerpo.mensaje} ${resultado.cuerpo.advertencia || ""}`.trim());
+      mostrarEstadoSesion("error", mensajeSesionMedicion(accion, resultado));
       return;
     }
     if (!resultado.cuerpo || resultado.cuerpo.ok !== true) {
-      mostrarEstadoSesion("error", (resultado.cuerpo && resultado.cuerpo.mensaje) || "No se pudo actualizar la sesión de medición.");
+      mostrarEstadoSesion("error", mensajeSesionMedicion(accion, resultado));
       return;
     }
     sesionMedicion = accion === "finalizar" ? null : resultado.cuerpo.sesion;
     pintarSesionMedicion();
-    const aviso = resultado.cuerpo.advertencia || "";
-    mostrarEstadoSesion("ok", `${resultado.cuerpo.mensaje || "Sesión de medición actualizada."} ${aviso}`.trim());
+    mostrarEstadoSesion("ok", mensajeSesionMedicion(accion, resultado));
     if (sesionActiva) await cargar({ manual: true });
   } catch {
-    mostrarEstadoSesion("error", "No se pudo actualizar la sesión de medición.");
+    mostrarEstadoSesion("error", "No se pudo actualizar la sesión de medición. Inténtelo de nuevo.");
   } finally {
     sesionMedicionOcupada = false;
     actualizarControlesSesion();
@@ -255,9 +293,11 @@ function mostrarAcceso(mensaje) {
   if (!estado) return;
   if (mensaje) {
     estado.textContent = mensaje;
+    estado.classList.add("error");
     estado.hidden = false;
   } else {
     estado.textContent = "";
+    estado.classList.remove("error");
     estado.hidden = true;
   }
 }
@@ -283,7 +323,7 @@ function presentarSinSesion() {
     $("patient-list").innerHTML = `<div class="loading-cell">${escapar(clasificacion.pacientes)}</div>`;
   }
   $("chart-empty").hidden = false;
-  $("chart-empty-message").textContent = "Inicia sesión para consultar las lecturas.";
+  $("chart-empty-message").textContent = "Inicie sesión para consultar las mediciones.";
   $("chart-show-all").hidden = true;
   $("updated-at").textContent = "Esperando acceso del equipo";
   notificarPacientesInforme();
@@ -311,11 +351,11 @@ function mostrarFalloDeCarga(error) {
   }
   $("chart-empty").hidden = !clasificacion.restringido;
   if (clasificacion.restringido) {
-    $("chart-empty-message").textContent = "Las lecturas clínicas requieren autorización.";
+    $("chart-empty-message").textContent = "Las mediciones requieren autorización.";
     $("chart-show-all").hidden = true;
     $("updated-at").textContent = "Datos clínicos protegidos";
   } else {
-    $("updated-at").textContent = "Sin actualización";
+    $("updated-at").textContent = "Sin actualización reciente";
   }
   console.error(error);
 }
@@ -404,7 +444,7 @@ function dibujar() {
   if (!idsPacientes.includes(pacientesComparacion[1]) || pacientesComparacion[1] === pacientesComparacion[0]) {
     pacientesComparacion[1] = idsPacientes.find((id) => id !== pacientesComparacion[0]) || "";
   }
-  const opcionesComparacion = (seleccionado) => '<option value="">Selecciona paciente</option>' + pacientes.map((paciente) => `<option value="${escapar(paciente.id)}">${escapar(nombrePaciente(paciente))} · #${escapar(paciente.id)}</option>`).join("");
+  const opcionesComparacion = (seleccionado) => '<option value="">Seleccione un paciente</option>' + pacientes.map((paciente) => `<option value="${escapar(paciente.id)}">${escapar(nombrePaciente(paciente))} · #${escapar(paciente.id)}</option>`).join("");
   $("compare-one").innerHTML = opcionesComparacion(pacientesComparacion[0]);
   $("compare-two").innerHTML = opcionesComparacion(pacientesComparacion[1]);
   $("compare-one").value = pacientesComparacion[0];
@@ -418,16 +458,16 @@ function dibujar() {
   const periodoTexto = { "24h": "últimas 24 horas", "7d": "últimos 7 días", "30d": "últimos 30 días" }[periodoActual];
   $("patient-context-heading").textContent = pacienteFiltrado ? nombrePaciente(pacienteFiltrado) : "Todos los pacientes";
   $("patient-context-help").textContent = pacienteFiltrado
-    ? (mediciones.length ? `Viendo las lecturas de ${nombrePaciente(pacienteFiltrado)}.` : `Todavía no hay lecturas asociadas a ${nombrePaciente(pacienteFiltrado)}.`)
-    : "Viendo las lecturas de toda la estación. Las mediciones sin paciente aparecen como “Sin asignar”.";
-  $("vitals-caption").textContent = pacienteFiltrado ? `Última lectura guardada de ${nombrePaciente(pacienteFiltrado)}. La hora indica si es reciente o histórica.` : "Última lectura guardada de la estación. La hora indica si es reciente o histórica.";
-  $("measurement-caption").textContent = pacienteFiltrado ? `Lecturas guardadas de ${nombrePaciente(pacienteFiltrado)} en las ${periodoTexto}.` : `Lecturas guardadas de las ${periodoTexto}.`;
+    ? (mediciones.length ? `Mediciones de ${nombrePaciente(pacienteFiltrado)}.` : `Todavía no hay mediciones asociadas a ${nombrePaciente(pacienteFiltrado)}.`)
+    : "Mediciones de toda la estación. Las que no tienen paciente aparecen como «Sin asignar».";
+  $("vitals-caption").textContent = pacienteFiltrado ? `Última medición guardada de ${nombrePaciente(pacienteFiltrado)}. La hora indica si es reciente o histórica.` : "Última medición guardada de la estación. La hora indica si es reciente o histórica.";
+  $("measurement-caption").textContent = pacienteFiltrado ? `Mediciones guardadas de ${nombrePaciente(pacienteFiltrado)} en las ${periodoTexto}.` : `Mediciones guardadas de las ${periodoTexto}.`;
   $("measurement-foot").textContent = pacienteFiltrado ? `Paciente · ${periodoTexto}` : `Periodo: ${periodoTexto}`;
-  $("type-select").innerHTML = tipos.length ? tipos.map((tipo) => `<option value="${escapar(tipo)}">${escapar(tipo)}</option>`).join("") : '<option value="">Sin lecturas en este periodo</option>';
+  $("type-select").innerHTML = tipos.length ? tipos.map((tipo) => `<option value="${escapar(tipo)}">${escapar(tipo)}</option>`).join("") : '<option value="">Sin mediciones en este periodo</option>';
   $("type-select").value = tipoActual;
   const ultima = mediciones[0];
   $("last-reading").textContent = ultima ? `${numero(ultima.valor)} ${ultima.unidad || ""}` : "-";
-  $("last-reading-time").textContent = ultima ? `${ultima.tipo} · ${fechaHora(ultima.registrado_en)}` : "Sin lecturas registradas";
+  $("last-reading-time").textContent = ultima ? `${ultima.tipo} · ${fechaHora(ultima.registrado_en)}` : "Sin mediciones registradas";
   const estadoLectura = $("last-reading-status");
   const antiguedad = ultima ? antiguedadLectura(ultima.registrado_en) : { estado: "unknown", texto: "" };
   estadoLectura.dataset.state = antiguedad.estado;
@@ -455,14 +495,14 @@ function dibujarSignosVitales() {
     const tarjeta = $(id);
     const tiempo = $(tiempoId);
     const edad = lectura ? antiguedadLectura(lectura.registrado_en) : { estado: "unknown", texto: "" };
-    const marca = edad.estado === "fresh" ? "Lectura reciente" : edad.estado === "stale" ? "Lectura histórica" : edad.estado === "future" ? "Fecha no válida" : "Sin fecha de lectura";
-    tarjeta.disabled = !lectura;
-    tarjeta.dataset.tipo = lectura?.tipo || "";
+    const marca = edad.estado === "fresh" ? "Medición reciente" : edad.estado === "stale" ? "Medición histórica" : edad.estado === "future" ? "Fecha no válida" : "Sin fecha de medición";
     $(valorId).textContent = lectura ? numero(lectura.valor) : "-";
     $(unidadId).textContent = lectura?.unidad || unidadPredeterminada;
-    tiempo.textContent = lectura ? `${marca}. ${fechaHora(lectura.registrado_en)}` : "Sin lectura guardada";
+    tiempo.textContent = lectura ? `${marca}. ${fechaHora(lectura.registrado_en)}` : "Sin medición guardada";
     tiempo.dataset.state = lectura ? edad.estado : "unknown";
-    tarjeta.setAttribute("aria-label", lectura ? `${lectura.tipo}: ${numero(lectura.valor)} ${lectura.unidad || unidadPredeterminada}. ${marca}. ${fechaHora(lectura.registrado_en)}. Pulsa para ver la tendencia.` : `Sin lecturas guardadas de ${nombreMetrica}`);
+    tarjeta.disabled = !lectura;
+    tarjeta.dataset.tipo = lectura?.tipo || "";
+    tarjeta.setAttribute("aria-label", lectura ? `${lectura.tipo}: ${numero(lectura.valor)} ${lectura.unidad || unidadPredeterminada}. ${marca}. ${fechaHora(lectura.registrado_en)}. Seleccione para ver la tendencia.` : `Sin mediciones guardadas de ${nombreMetrica}`);
     tarjeta.setAttribute("aria-pressed", String(Boolean(lectura && lectura.tipo === tipoActual)));
     tarjeta.classList.toggle("selected", Boolean(lectura && lectura.tipo === tipoActual));
   };
@@ -499,20 +539,20 @@ function dibujarPacientes() {
   $("patient-foot-count").textContent = busquedaPaciente ? `Resultados para “${busquedaPaciente}”` : `Mostrando ${recientes.length} pacientes`;
   if (vistaPacientesVue) {
     vistaPacientesVue.pacientes = recientes;
-    vistaPacientesVue.mensajeVacio = busquedaPaciente ? "No se encontraron pacientes con esa búsqueda." : "Aún no hay pacientes registrados.";
+    vistaPacientesVue.mensajeVacio = busquedaPaciente ? "Ningún paciente coincide con la búsqueda." : "Aún no hay pacientes registrados.";
     return;
   }
   const lista = $("patient-list");
   lista.removeAttribute("v-cloak");
   if (!recientes.length) {
-    $("patient-list").innerHTML = `<div class="loading-cell">${busquedaPaciente ? "No se encontraron pacientes con esa búsqueda." : "Aún no hay pacientes registrados."}</div>`;
+    $("patient-list").innerHTML = `<div class="loading-cell">${busquedaPaciente ? "Ningún paciente coincide con la búsqueda." : "Aún no hay pacientes registrados."}</div>`;
     return;
   }
   $("patient-list").innerHTML = recientes.map((p) => {
     const nombre = nombrePaciente(p);
     const iniciales = nombre.split(/\s+/).slice(0, 2).map((parte) => parte.charAt(0)).join("").toUpperCase();
     const contacto = p.correo || p.telefono || "Sin contacto";
-    return `<button class="patient-row patient-detail-trigger" type="button" data-patient-id="${escapar(p.id)}"><span class="patient-avatar">${escapar(iniciales)}</span><span class="patient-info"><strong>${escapar(nombre)}</strong><span>ID ${escapar(p.id)} | ${escapar(contacto)}</span></span><span class="patient-date">${escapar(fecha(p.creado_en, { year: "numeric" }))}</span><span class="patient-row-arrow" aria-hidden="true">&rsaquo;</span></button>`;
+    return `<button class="patient-row patient-detail-trigger" type="button" data-patient-id="${escapar(p.id)}"><span class="patient-avatar">${escapar(iniciales)}</span><span class="patient-info"><strong>${escapar(nombre)}</strong><span>Identificador ${escapar(p.id)} · ${escapar(contacto)}</span></span><span class="patient-date">${escapar(fecha(p.creado_en, { year: "numeric" }))}</span><span class="patient-row-arrow" aria-hidden="true">&rsaquo;</span></button>`;
   }).join("");
 }
 function mostrarCampoDetalle(etiqueta, valor) {
@@ -523,7 +563,7 @@ function dibujarDetallePaciente(paciente, lecturas) {
   const iniciales = nombre.split(/\s+/).slice(0, 2).map((parte) => parte.charAt(0)).join("").toUpperCase();
   $("patient-detail-avatar").textContent = iniciales || "P";
   $("patient-detail-name").textContent = nombre;
-  $("patient-detail-id").textContent = `Paciente ${paciente.id}`;
+  $("patient-detail-id").textContent = `Identificador ${paciente.id}`;
   $("patient-detail-contact").innerHTML = [
     mostrarCampoDetalle("Fecha de nacimiento", fechaLocal(paciente.fecha_nacimiento)),
     mostrarCampoDetalle("Sexo", paciente.sexo),
@@ -535,13 +575,13 @@ function dibujarDetallePaciente(paciente, lecturas) {
   const ultima = lecturas[0];
   $("detail-reading-count").textContent = numero(lecturas.length);
   $("detail-type-count").textContent = numero(tipos.size);
-  $("detail-last-reading").textContent = ultima ? fechaHora(ultima.registrado_en) : "Sin lecturas";
+  $("detail-last-reading").textContent = ultima ? fechaHora(ultima.registrado_en) : "Sin mediciones";
   $("detail-measurement-note").textContent = lecturas.length === 100
-    ? "Se muestran las 100 lecturas mas recientes disponibles."
-    : `Se encontraron ${lecturas.length} lecturas vinculadas.`;
+    ? "Se muestran las 100 mediciones más recientes disponibles."
+    : `Se encontraron ${lecturas.length} mediciones vinculadas.`;
   $("patient-detail-rows").innerHTML = lecturas.length
     ? lecturas.slice(0, 10).map((lectura) => `<tr><td><span class="type-cell"><i class="type-dot"></i>${escapar(lectura.tipo)}</span></td><td class="value-cell">${escapar(numero(lectura.valor))} ${escapar(lectura.unidad || "")}</td><td>${escapar(fechaHora(lectura.registrado_en))}</td></tr>`).join("")
-    : '<tr><td colspan="3" class="loading-cell">No hay lecturas vinculadas a este paciente.</td></tr>';
+    : '<tr><td colspan="3" class="loading-cell">No hay mediciones vinculadas a este paciente.</td></tr>';
 }
 function descargarFichaPaciente() {
   const paciente = pacienteDetalleActual;
@@ -558,12 +598,12 @@ function descargarFichaPaciente() {
   ];
   const filas = lecturas.length
     ? lecturas.map((lectura) => `<tr><td>${escapar(lectura.tipo || "Sin tipo")}</td><td>${escapar(numero(lectura.valor))} ${escapar(lectura.unidad || "")}</td><td>${escapar(fechaHora(lectura.registrado_en))}</td></tr>`).join("")
-    : '<tr><td colspan="3">No hay lecturas vinculadas a este paciente.</td></tr>';
-  const documento = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ficha de ${escapar(nombrePaciente(paciente))}</title><style>*{box-sizing:border-box}body{max-width:900px;margin:40px auto;padding:0 24px;color:#20334d;font:15px Arial,sans-serif}header{padding:22px 0;border-bottom:3px solid #0f6e73}h1{margin:0;font-size:26px}header p,small{color:#718197}.section{margin-top:26px}h2{font-size:17px}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}dl div{padding:12px;border:1px solid #e2eaf0;border-radius:8px;background:#fbfcfd}dt{color:#718197;font-size:11px;text-transform:uppercase}dd{margin:5px 0 0;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse}th,td{padding:11px;text-align:left;border-bottom:1px solid #e5ebf2}th{background:#f2f7f8;color:#53657b;font-size:11px}@media(max-width:560px){body{margin:20px auto;padding:0 14px}dl{grid-template-columns:1fr}}@media print{body{margin:0 auto;padding:0}header{break-after:avoid}tr{break-inside:avoid}}</style></head><body><header><h1>Ficha del paciente</h1><p>${escapar(nombrePaciente(paciente))} · ID ${escapar(paciente.id)}</p><small>Generada el ${escapar(fechaHora(new Date().toISOString()))}</small></header><section class="section"><h2>Datos del paciente</h2><dl>${campos.map(([etiqueta, valor]) => `<div><dt>${escapar(etiqueta)}</dt><dd>${escapar(valor)}</dd></div>`).join("")}</dl></section><section class="section"><h2>Mediciones recientes</h2><p><small>Se incluyen hasta 10 de las ${escapar(lecturasDetalleActuales.length)} lecturas consultadas.</small></p><table><thead><tr><th>Tipo</th><th>Valor</th><th>Fecha y hora</th></tr></thead><tbody>${filas}</tbody></table></section><footer class="section"><small>Documento informativo generado por la estación de telemedicina.</small></footer></body></html>`;
+    : '<tr><td colspan="3">No hay mediciones vinculadas a este paciente.</td></tr>';
+  const documento = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ficha de ${escapar(nombrePaciente(paciente))}</title><style>*{box-sizing:border-box}body{max-width:900px;margin:40px auto;padding:0 24px;color:#20334d;font:15px Arial,sans-serif}header{padding:22px 0;border-bottom:3px solid #0f6e73}h1{margin:0;font-size:26px}header p,small{color:#718197}.section{margin-top:26px}h2{font-size:17px}dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}dl div{padding:12px;border:1px solid #e2eaf0;border-radius:8px;background:#fbfcfd}dt{color:#718197;font-size:11px;text-transform:uppercase}dd{margin:5px 0 0;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse}th,td{padding:11px;text-align:left;border-bottom:1px solid #e5ebf2}th{background:#f2f7f8;color:#53657b;font-size:11px}@media(max-width:560px){body{margin:20px auto;padding:0 14px}dl{grid-template-columns:1fr}}@media print{body{margin:0 auto;padding:0}header{break-after:avoid}tr{break-inside:avoid}}</style></head><body><header><h1>Ficha del paciente</h1><p>${escapar(nombrePaciente(paciente))} · Identificador ${escapar(paciente.id)}</p><small>Generada el ${escapar(fechaHora(new Date().toISOString()))}</small></header><section class="section"><h2>Datos del paciente</h2><dl>${campos.map(([etiqueta, valor]) => `<div><dt>${escapar(etiqueta)}</dt><dd>${escapar(valor)}</dd></div>`).join("")}</dl></section><section class="section"><h2>Mediciones recientes</h2><p><small>Se incluyen hasta 10 de las ${escapar(lecturasDetalleActuales.length)} mediciones consultadas. Este documento es informativo y no constituye un diagnóstico.</small></p><table><thead><tr><th>Tipo</th><th>Valor</th><th>Fecha y hora</th></tr></thead><tbody>${filas}</tbody></table></section><footer class="section"><small>Documento informativo de la Estación de Telemedicina. No sustituye una valoración clínica.</small></footer></body></html>`;
   const ventanaImpresion = window.open("", "_blank");
   if (!ventanaImpresion) {
     const aviso = $("patient-detail-feedback");
-    aviso.textContent = "El navegador bloqueó la ventana del PDF. Permite las ventanas emergentes para este sitio e inténtalo de nuevo.";
+    aviso.textContent = "El navegador bloqueó la ventana de impresión. Permita las ventanas emergentes de este sitio e inténtelo de nuevo.";
     aviso.hidden = false;
     return;
   }
@@ -593,12 +633,12 @@ async function mostrarDetallePaciente(id) {
   $("patient-detail-download").disabled = true;
   $("patient-detail-feedback").hidden = true;
   $("patient-detail-name").textContent = inicial ? nombrePaciente(inicial) : "Cargando paciente…";
-  $("patient-detail-id").textContent = `Paciente ${idPaciente}`;
+  $("patient-detail-id").textContent = `Identificador ${idPaciente}`;
   $("patient-detail-contact").innerHTML = '<div class="loading-cell">Cargando datos del paciente…</div>';
   $("detail-reading-count").textContent = "-";
   $("detail-type-count").textContent = "-";
   $("detail-last-reading").textContent = "-";
-  $("detail-measurement-note").textContent = "Consultando las últimas lecturas…";
+  $("detail-measurement-note").textContent = "Consultando las últimas mediciones…";
   $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Cargando…</td></tr>';
   if (!dialogo.open) dialogo.showModal();
   try {
@@ -616,9 +656,9 @@ async function mostrarDetallePaciente(id) {
     if (secuencia !== secuenciaDetallePaciente || !dialogo.open) return;
     $("patient-detail-download").disabled = true;
     const sinAutorizacion = error && error.estado === 401;
-    $("patient-detail-contact").innerHTML = `<div class="loading-cell">${sinAutorizacion ? "No tienes autorización para ver esta ficha." : "No se pudo cargar la ficha."}</div>`;
-    $("detail-measurement-note").textContent = sinAutorizacion ? "Las lecturas requieren autorización." : "No se pudieron consultar las lecturas.";
-    $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Vuelve a abrir la ficha para intentarlo de nuevo.</td></tr>';
+    $("patient-detail-contact").innerHTML = `<div class="loading-cell">${sinAutorizacion ? "No tiene autorización para consultar esta ficha." : "No se pudo cargar la ficha. Inténtelo de nuevo."}</div>`;
+    $("detail-measurement-note").textContent = sinAutorizacion ? "Las mediciones requieren autorización." : "No se pudieron consultar las mediciones.";
+    $("patient-detail-rows").innerHTML = '<tr><td colspan="3" class="loading-cell">Vuelva a abrir la ficha para intentarlo de nuevo.</td></tr>';
   }
 }
 function establecerModoEdicionPaciente(edicion) {
@@ -665,7 +705,7 @@ function dibujarDonut(tipos, porTipo) {
   $("donut-total").textContent = numero(total);
   if (!total) {
     $("donut").style.background = `conic-gradient(${tono("--chart-empty", "#1e4650")} 0% 100%)`;
-    $("legend-list").innerHTML = '<span class="muted">Sin datos</span>';
+    $("legend-list").innerHTML = '<span class="muted">Sin mediciones en este periodo</span>';
     return;
   }
   const colores = paletaActiva();
@@ -701,13 +741,13 @@ function dibujarGrafica() {
     $("chart-empty").hidden = false;
     $("chart-latest").textContent = "-";
     const periodoLegible = { "24h": "las últimas 24 horas", "7d": "los últimos 7 días", "30d": "los últimos 30 días" }[periodoActual] || "el periodo seleccionado";
-    $("chart-unit").textContent = `Sin lecturas en ${periodoLegible}`;
+    $("chart-unit").textContent = `Sin mediciones en ${periodoLegible}`;
     const sinLecturasComparables = comparacionActiva && mediciones.length > 0;
     $("chart-empty-message").textContent = sinLecturasComparables
-      ? `No hay lecturas asociadas a los pacientes elegidos en ${periodoLegible}. Puedes mostrar las lecturas generales sin atribuirlas a un paciente.`
+      ? `No hay mediciones asociadas a los pacientes elegidos en ${periodoLegible}. Puede mostrar las mediciones generales, sin atribuirlas a un paciente.`
       : mediciones.length === 0
-        ? `No hay lecturas en ${periodoLegible}. Prueba con un periodo más amplio, como los últimos 7 días.`
-        : `No hay lecturas de ${tipoActual || "este tipo"} para los pacientes seleccionados en ${periodoLegible}.`;
+        ? `No hay mediciones en ${periodoLegible}. Amplíe el periodo, por ejemplo a los últimos 7 días.`
+        : `No hay mediciones de ${tipoActual || "este tipo"} en ${periodoLegible}.`;
     $("chart-show-all").hidden = !sinLecturasComparables;
     $("chart-legend").innerHTML = "";
     return;
@@ -760,13 +800,14 @@ function dibujarGrafica() {
   const etiquetaUnidad = filasPorSerie.flatMap((serie) => serie.filas)[0]?.unidad || "";
   if (comparacionActiva) {
     const ultimas = filasPorSerie.map((serie) => serie.filas[serie.filas.length - 1]);
+    const etiquetaPeriodo = { "24h": "Últimas 24 horas", "7d": "Últimos 7 días", "30d": "Últimos 30 días" }[periodoActual] || "Periodo seleccionado";
     $("chart-latest").textContent = ultimas.map((fila) => fila ? numero(fila.valor) : "-").join(" / ");
-    $("chart-unit").textContent = `${etiquetaUnidad} · ${periodoActual}`;
+    $("chart-unit").textContent = `${etiquetaUnidad} · ${etiquetaPeriodo}`;
     $("chart-legend").innerHTML = filasPorSerie.map((serie) => `<span class="legend-series"><i style="background:${serie.color}"></i>${escapar(serie.nombre)}</span>`).join("");
   } else {
     const reciente = filasPorSerie[0].filas[filasPorSerie[0].filas.length - 1];
     $("chart-latest").textContent = reciente ? `${numero(reciente.valor)} ${reciente.unidad || ""}` : "-";
-    $("chart-unit").textContent = `Última lectura · ${fechaHora(reciente.registrado_en)}`;
+    $("chart-unit").textContent = `Última medición · ${fechaHora(reciente.registrado_en)}`;
     $("chart-legend").innerHTML = `<i></i><span id="chart-label">${escapar(tipoActual || "Mediciones")}</span>`;
   }
 }
@@ -827,8 +868,8 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
       mostrarAcceso(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
       throw new Error(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
     }
-    if (!response.ok) throw new Error(resultado.mensaje || "No se pudieron guardar los cambios. Inténtalo nuevamente.");
-    if (!resultado.paciente?.id) throw new Error("No se pudieron guardar los cambios. Inténtalo nuevamente.");
+    if (!response.ok) throw new Error(resultado.mensaje || "No se pudieron guardar los cambios. Inténtelo de nuevo.");
+    if (!resultado.paciente?.id) throw new Error("No se pudieron guardar los cambios. Inténtelo de nuevo.");
     pacienteDetalleActual = resultado.paciente;
     pacientes = pacientes.map((paciente) => String(paciente.id) === String(id) ? resultado.paciente : paciente);
     notificarPacientesInforme();
@@ -839,7 +880,7 @@ $("patient-edit-form").addEventListener("submit", async (event) => {
     $("patient-detail-feedback").hidden = false;
   } catch (error) {
     estado.textContent = error instanceof TypeError
-      ? "No se pudo conectar. Inténtalo nuevamente más tarde."
+      ? "No se pudo conectar. Inténtelo más tarde."
       : error.message || "No se pudieron guardar los cambios.";
     estado.classList.add("error");
     estado.hidden = false;
@@ -910,7 +951,7 @@ function alternarFormularioPaciente() {
   form.hidden = true;
   form.classList.remove("is-open");
   $("context-add-patient").setAttribute("aria-expanded", "false");
-  $("context-add-patient").textContent = "＋ Registrar paciente";
+  $("context-add-patient").textContent = "Registrar paciente";
 }
 $("nav-add-patient").addEventListener("click", abrirFormularioPaciente);
 $("context-add-patient").addEventListener("click", alternarFormularioPaciente);
@@ -921,7 +962,7 @@ $("patient-form").addEventListener("submit", async (event) => {
   const estado = $("patient-form-status");
   const datos = Object.fromEntries([...new FormData(form)].map(([clave, valor]) => [clave, String(valor).trim()]).filter(([, valor]) => valor !== ""));
   if (!datos.nombre) {
-    estado.textContent = "Escribe el nombre del paciente para poder registrarlo.";
+    estado.textContent = "Indique el nombre del paciente para registrarlo.";
     estado.classList.add("error");
     estado.hidden = false;
     form.elements.nombre.focus();
@@ -946,18 +987,18 @@ $("patient-form").addEventListener("submit", async (event) => {
       mostrarAcceso(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
       throw new Error(window.TELEMEDICINA_ACCESO.mensajeDeSesion(resultado.codigo || "SESION_REQUERIDA"));
     }
-    if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : "No se pudo registrar el paciente. Revisa los datos e inténtalo de nuevo."));
-    if (!resultado.paciente?.id) throw new Error("No se pudo confirmar el registro. Actualiza la lista para revisarlo.");
+    if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : "No se pudo registrar el paciente. Revise los datos e inténtelo de nuevo."));
+    if (!resultado.paciente?.id) throw new Error("No se pudo confirmar el registro. Actualice la lista para verificarlo.");
     form.reset();
     pacienteActual = String(resultado.paciente.id);
     busquedaPaciente = "";
     await cargar();
-    estado.textContent = `Paciente registrado. Identificador ${resultado.paciente.id}.`;
+    estado.textContent = `El paciente se registró correctamente. Identificador ${resultado.paciente.id}.`;
     estado.hidden = false;
   } catch (error) {
     estado.textContent = error instanceof TypeError
-      ? "No se pudo conectar. Inténtalo nuevamente más tarde."
-      : error.message || "No se pudo registrar el paciente. Revisa los datos e inténtalo de nuevo.";
+      ? "No se pudo conectar. Inténtelo más tarde."
+      : error.message || "No se pudo registrar el paciente. Revise los datos e inténtelo de nuevo.";
     estado.classList.add("error");
     estado.hidden = false;
   } finally {
@@ -1089,6 +1130,7 @@ $("access-form").addEventListener("submit", async (event) => {
   const contrasena = String(new FormData(form).get("contrasena") || "");
   boton.disabled = true;
   estado.hidden = true;
+  estado.classList.remove("error");
   try {
     const respuesta = await fetch("/api/sesion", {
       method: "POST",
@@ -1100,6 +1142,7 @@ $("access-form").addEventListener("submit", async (event) => {
     form.elements.contrasena.value = "";
     if (!respuesta.ok) {
       estado.textContent = window.TELEMEDICINA_ACCESO.mensajeDeSesion(cuerpo.codigo);
+      estado.classList.add("error");
       estado.hidden = false;
       return;
     }
@@ -1109,7 +1152,8 @@ $("access-form").addEventListener("submit", async (event) => {
     await cargar({ manual: true });
   } catch {
     form.elements.contrasena.value = "";
-    estado.textContent = "No se pudo iniciar sesión. Inténtalo nuevamente.";
+    estado.textContent = "No se pudo iniciar sesión. Inténtelo de nuevo.";
+    estado.classList.add("error");
     estado.hidden = false;
   } finally {
     boton.disabled = false;

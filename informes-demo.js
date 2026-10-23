@@ -29,7 +29,7 @@
     const unidad = typeof serie.unidad === "string" ? serie.unidad : "";
     return {
       disponible: true,
-      texto: `Promedio ${serie.promedio} ${unidad}. Mínimo ${serie.minimo} ${unidad}. Máximo ${serie.maximo} ${unidad}. ${serie.lecturas} lecturas.`.replace(/\s{2,}/g, " ")
+      texto: `Promedio ${serie.promedio} ${unidad}. Mínimo ${serie.minimo} ${unidad}. Máximo ${serie.maximo} ${unidad}. ${serie.lecturas} mediciones.`.replace(/\s{2,}/g, " ")
     };
   }
 
@@ -68,7 +68,7 @@
     };
   }
 
-  const MENSAJE_SIN_MEDICIONES = "Este paciente todavía no tiene mediciones registradas. Cuando se registren sus primeras lecturas, podrás generar su informe de seguimiento.";
+  const MENSAJE_SIN_MEDICIONES = "Este paciente todavía no tiene mediciones registradas. Cuando se registren las primeras, podrá generar el informe de seguimiento.";
 
   function esEjemplo(pacienteId) {
     return /^PAC-DEMO-\d{2}$/.test(String(pacienteId || ""));
@@ -125,48 +125,48 @@
 
   function interpretarFallo(estado, codigo) {
     if (codigo === "DATOS_INSUFICIENTES" || estado === 422) {
-      return { fase: "insuficiente", reintentar: false, mensaje: "No hay lecturas suficientes para generar el informe." };
+      return { fase: "insuficiente", reintentar: false, mensaje: "No hay mediciones suficientes para generar el informe." };
     }
     if (codigo === "LIMITE_SOLICITUDES" || estado === 429) {
-      return { fase: "limite", reintentar: true, mensaje: "Has realizado varias solicitudes seguidas. Espera un minuto e inténtalo de nuevo." };
+      return { fase: "limite", reintentar: true, mensaje: "Se alcanzó el límite de solicitudes. Espere un minuto e inténtelo de nuevo." };
     }
     if (estado === 401 || codigo === "NO_AUTORIZADO" || codigo === "SESION_REQUERIDA" || codigo === "SESION_EXPIRADA") {
-      return { fase: "denegado", reintentar: true, mensaje: "No tienes autorización para generar este informe. Inicia sesión e inténtalo de nuevo." };
+      return { fase: "denegado", reintentar: true, mensaje: "No tiene autorización para generar este informe. Inicie sesión e inténtelo de nuevo." };
     }
     if (estado === 404 || codigo === "PACIENTE_NO_ENCONTRADO") {
       return { fase: "error", reintentar: false, mensaje: "No se encontró el paciente seleccionado." };
     }
     if (estado === 504 || codigo === "TIEMPO_AGOTADO") {
-      return { fase: "error", reintentar: true, mensaje: "La generación tardó demasiado. Inténtalo nuevamente más tarde." };
+      return { fase: "error", reintentar: true, mensaje: "La generación tardó demasiado. Inténtelo más tarde." };
     }
     if (estado === 500) {
-      return { fase: "error", reintentar: true, mensaje: "No fue posible generar el informe. El servicio encontró un error interno. Inténtalo nuevamente más tarde." };
+      return { fase: "error", reintentar: true, mensaje: "No fue posible generar el informe. El servicio encontró un error interno. Inténtelo más tarde." };
     }
     if (estado === 0 || codigo === "API_NO_DISPONIBLE") {
       return { fase: "api", reintentar: true, mensaje: "El servicio no está disponible en este momento." };
     }
     if (estado === 502 || estado === 503) {
-      return { fase: "error", reintentar: true, mensaje: "No fue posible generar el informe. Inténtalo nuevamente más tarde." };
+      return { fase: "error", reintentar: true, mensaje: "No fue posible generar el informe. Inténtelo más tarde." };
     }
-    return { fase: "error", reintentar: true, mensaje: "No fue posible generar el informe. Inténtalo nuevamente más tarde." };
+    return { fase: "error", reintentar: true, mensaje: "No fue posible generar el informe. Inténtelo más tarde." };
   }
 
   function mensajeConsulta(resultado) {
     const codigo = resultado && resultado.codigo;
     const estado = resultado && resultado.http;
     if (codigo === "TIEMPO_AGOTADO" || estado === 504) {
-      return "La consulta de mediciones tardó demasiado. Puedes intentarlo de nuevo.";
+      return "La consulta de mediciones tardó demasiado. Puede intentarlo de nuevo.";
     }
     if (estado === 401 || codigo === "NO_AUTORIZADO" || codigo === "SESION_REQUERIDA" || codigo === "SESION_EXPIRADA") {
-      return "No tienes autorización para consultar las mediciones de este paciente. Inicia sesión e inténtalo de nuevo.";
+      return "No tiene autorización para consultar las mediciones de este paciente. Inicie sesión e inténtelo de nuevo.";
     }
     if (estado === 500) {
-      return "No se pudieron consultar las mediciones por un error del servicio. Puedes intentarlo de nuevo.";
+      return "No se pudieron consultar las mediciones por un error del servicio. Puede intentarlo de nuevo.";
     }
     if (estado === 502 || estado === 503) {
-      return "No se pudieron consultar las mediciones. El servicio no completó la solicitud. Puedes intentarlo de nuevo.";
+      return "No se pudieron consultar las mediciones. El servicio no completó la solicitud. Puede intentarlo de nuevo.";
     }
-    return "No se pudieron consultar las mediciones de este paciente. Puedes intentarlo de nuevo.";
+    return "No se pudieron consultar las mediciones de este paciente. Puede intentarlo de nuevo.";
   }
 
   async function consultarLecturas(pacienteId, fetchImpl) {
@@ -243,7 +243,7 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
       pacientes: informes.combinarPacientes(informes.tomarRegistrados(window)),
       pacienteId: "PAC-DEMO-01",
       fase: "inicial",
-      mensaje: "Selecciona un paciente y genera el informe.",
+      mensaje: "Seleccione un paciente y genere el informe.",
       informe: null,
       reintentar: false,
       generacion: 0
@@ -296,14 +296,14 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
         this.reintentar = false;
         if (informes.esEjemplo(id)) {
           this.fase = "inicial";
-          this.mensaje = `Seleccionado: ${this.nombreVisible(id)}. Es un paciente de ejemplo.`;
+          this.mensaje = `Paciente de ejemplo seleccionado: ${this.nombreVisible(id)}.`;
           return;
         }
         this.confirmarLecturas(id, token);
       },
       async confirmarLecturas(id, token) {
         this.fase = "consultando";
-        this.mensaje = "Consultando las lecturas del paciente…";
+        this.mensaje = "Consultando las mediciones del paciente…";
         const resultado = await informes.consultarLecturas(id, (url, opciones) => fetch(url, opciones));
         if (token !== this.generacion || this.pacienteId !== id) return;
         if (resultado.estado === "vacio") {
@@ -319,7 +319,7 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
           return;
         }
         this.fase = "inicial";
-        this.mensaje = `Seleccionado: ${this.nombreVisible(id)}. Hay lecturas registradas.`;
+        this.mensaje = `Hay mediciones registradas para ${this.nombreVisible(id)}. Puede generar el informe.`;
         this.reintentar = false;
       },
       async solicitarRegistrado(id, token) {
@@ -378,7 +378,7 @@ if (typeof document !== "undefined" && document.getElementById("informes-app") &
         }
         this.informe = informes.presentarInforme(cuerpo.informe);
         this.fase = "listo";
-        this.mensaje = `Seleccionado: ${this.nombreVisible(id)}. Informe de seguimiento listo.`;
+        this.mensaje = `Informe de seguimiento listo para ${this.nombreVisible(id)}.`;
         this.reintentar = false;
       },
       async solicitar() {

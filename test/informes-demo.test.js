@@ -50,7 +50,7 @@ test("traduce los errores del proveedor sin repetir mensajes sensibles", () => {
   assert.match(interpretarFallo(0, "API_NO_DISPONIBLE").mensaje, /no está disponible/);
   assert.equal(interpretarFallo(502, "GENERACION_ESTRUCTURADA_FALLIDA").fase, "error");
   assert.match(interpretarFallo(503, "SIN_API_KEY").mensaje, /No fue posible generar el informe/);
-  assert.match(interpretarFallo(504, "TIEMPO_AGOTADO").mensaje, /Inténtalo nuevamente más tarde/);
+  assert.match(interpretarFallo(504, "TIEMPO_AGOTADO").mensaje, /Inténtelo más tarde/);
   assert.equal(interpretarFallo(429, "LIMITE_SOLICITUDES").fase, "limite");
   assert.equal(interpretarFallo(403, "SOLO_LOCAL").fase, "error");
   const secreto = "GROQ_API_KEY gsk_secreto";

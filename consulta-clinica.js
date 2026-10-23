@@ -1,5 +1,5 @@
 (function (raiz) {
-  const MENSAJE_RESTRINGIDO = "No tienes autorización para consultar pacientes y mediciones. El servicio está en línea y estos datos permanecen protegidos.";
+  const MENSAJE_RESTRINGIDO = "No tiene autorización para consultar pacientes y mediciones. El servicio está en línea y estos datos permanecen protegidos.";
   const MENSAJE_NO_DISPONIBLE = "No se pudieron cargar los datos. El servicio no está disponible en este momento.";
 
   function clasificarFalloClinico(error) {
@@ -8,9 +8,9 @@
         restringido: true,
         sesion: true,
         servicio: "Sin sesión",
-        mensaje: "La sesión expiró. Vuelve a iniciar sesión.",
-        mediciones: "Inicia sesión para consultar las mediciones.",
-        pacientes: "Inicia sesión para consultar los pacientes.",
+        mensaje: "La sesión del equipo expiró. Vuelva a iniciar sesión.",
+        mediciones: "Inicie sesión para consultar las mediciones.",
+        pacientes: "Inicie sesión para consultar los pacientes.",
         pastilla: "Sin sesión"
       };
     }
@@ -19,9 +19,9 @@
         restringido: true,
         sesion: true,
         servicio: "Sin sesión",
-        mensaje: "Inicia sesión para consultar pacientes y mediciones.",
-        mediciones: "Inicia sesión para consultar las mediciones.",
-        pacientes: "Inicia sesión para consultar los pacientes.",
+        mensaje: "Inicie sesión para consultar pacientes y mediciones.",
+        mediciones: "Inicie sesión para consultar las mediciones.",
+        pacientes: "Inicie sesión para consultar los pacientes.",
         pastilla: "Sin sesión"
       };
     }

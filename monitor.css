@@ -845,10 +845,42 @@ body.clinical .sesion-medicion {
 body.clinical .sesion-medicion-nota,
 body.clinical .sesion-medicion-aviso,
 body.clinical .sesion-medicion-activa,
+body.clinical .sesion-medicion-detalle,
 body.clinical .sesion-medicion-estado { margin: 0; }
 
-body.clinical .sesion-medicion-nota,
+body.clinical .sesion-medicion-nota { color: var(--ink-soft); }
+
 body.clinical .sesion-medicion-aviso { color: var(--caution); }
+
+body.clinical .sesion-medicion-detalle {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+body.clinical .sesion-medicion-detalle summary {
+  width: fit-content;
+  color: var(--link);
+  cursor: pointer;
+}
+
+body.clinical .sesion-medicion-detalle summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+body.clinical .sesion-medicion-detalle p { margin: var(--space-2) 0 0; }
+
+body.clinical .sesion-medicion-activa {
+  display: grid;
+  gap: var(--space-1);
+}
+
+body.clinical .sesion-medicion-activa #sesion-medicion-resumen { color: var(--ink); }
+
+body.clinical .sesion-medicion-activa #sesion-medicion-meta { color: var(--ink-soft); font-size: var(--text-sm); }
+
+body.clinical .sesion-medicion-activa[data-state="activa"] #sesion-medicion-resumen { color: var(--accent); }
 
 body.clinical .sesion-medicion-controles {
   display: flex;
@@ -877,7 +909,15 @@ body.clinical .sesion-medicion-controles :disabled {
 
 body.clinical .sesion-medicion-estado[data-state="loading"] { color: var(--muted); }
 
+body.clinical .sesion-medicion-estado[data-state="ok"] { color: var(--accent); }
+
 body.clinical .sesion-medicion-estado[data-state="error"] { color: var(--alert); }
+
+body.clinical .patient-form-status:not(.error):not([hidden]) { color: var(--accent); }
+
+body.clinical .informes-status[data-fase="listo"] { color: var(--accent); }
+
+body.clinical .informes-status[data-fase="sin-datos"] { color: var(--caution); }
 
 @media (prefers-reduced-motion: reduce) {
   body.clinical .vital-card,
