@@ -25,7 +25,7 @@
     <a class="nav-item" href="#sesion-medicion"><span class="nav-icon" aria-hidden="true"></span>Sesión</a>
     <a class="nav-item" href="#pacientes"><span class="nav-icon" aria-hidden="true"></span>Pacientes</a>
     <a class="nav-item" href="#informes"><span class="nav-icon" aria-hidden="true"></span>Informes</a>
-    <button class="nav-item nav-action" id="nav-add-patient" type="button"><span class="nav-icon" aria-hidden="true"></span>Registrar paciente</button>
+    <button class="nav-item nav-action" id="nav-add-patient" type="button" aria-expanded="false" aria-controls="patient-form"><span class="nav-icon" aria-hidden="true"></span>Registrar paciente</button>
     <div class="sidebar-bottom"><span class="status-dot" id="api-dot" data-state="unknown"></span><span>Servicio<small id="api-status">Consultando…</small></span></div>
   </aside>
   <main class="main">
@@ -99,8 +99,9 @@
           <label>Teléfono<input name="telefono" type="tel" maxlength="30" autocomplete="tel" placeholder="Opcional"></label>
           <label>Correo electrónico<input name="correo" type="email" maxlength="255" autocomplete="email" placeholder="Opcional"></label>
         </div>
-        <div class="patient-form-actions"><p class="patient-form-status" id="patient-form-status" role="status" aria-live="polite" hidden></p><button class="patient-submit" type="submit">Guardar paciente</button></div>
+        <div class="patient-form-actions"><p class="patient-form-status" id="patient-form-status" role="status" aria-live="polite" hidden></p><button class="patient-detail-secondary" id="patient-form-cancel" type="button">Cancelar</button><button class="patient-submit" type="submit">Guardar paciente</button></div>
       </form>
+      <p class="patient-register-confirm" id="patient-register-confirm" role="status" aria-live="polite" hidden></p>
     </section>
     <section class="content-grid">
       <article class="panel chart-panel" id="mediciones">

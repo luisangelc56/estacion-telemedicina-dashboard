@@ -931,30 +931,55 @@ $("chart-show-all").addEventListener("click", () => {
   $("patient-filter").value = "";
   cargar();
 });
+function marcarRegistroPaciente(abierto) {
+  const boton = $("context-add-patient");
+  const navegacion = $("nav-add-patient");
+  if (boton) {
+    boton.setAttribute("aria-expanded", abierto ? "true" : "false");
+    boton.textContent = abierto ? "Cerrar formulario" : "Registrar paciente";
+  }
+  if (navegacion) navegacion.setAttribute("aria-expanded", abierto ? "true" : "false");
+}
+function cerrarFormularioPaciente(opciones = {}) {
+  const form = $("patient-form");
+  if (!form) return;
+  form.hidden = true;
+  form.classList.remove("is-open");
+  marcarRegistroPaciente(false);
+  const estado = $("patient-form-status");
+  if (estado) {
+    estado.textContent = "";
+    estado.hidden = true;
+    estado.classList.remove("error");
+  }
+  if (opciones.limpiar) form.reset();
+}
 function abrirFormularioPaciente() {
   const form = $("patient-form");
-  const boton = $("context-add-patient");
+  const confirmacion = $("patient-register-confirm");
+  if (confirmacion) confirmacion.hidden = true;
   form.hidden = false;
   form.classList.add("is-open");
-  boton.setAttribute("aria-expanded", "true");
-  boton.textContent = "Cerrar formulario";
+  marcarRegistroPaciente(true);
   const movimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
   form.scrollIntoView({ behavior: movimiento, block: "center" });
   form.elements.nombre.focus({ preventScroll: true });
 }
 function alternarFormularioPaciente() {
-  const form = $("patient-form");
-  if (form.hidden) {
+  if ($("patient-form").hidden) {
     abrirFormularioPaciente();
     return;
   }
-  form.hidden = true;
-  form.classList.remove("is-open");
-  $("context-add-patient").setAttribute("aria-expanded", "false");
-  $("context-add-patient").textContent = "Registrar paciente";
+  cerrarFormularioPaciente();
 }
 $("nav-add-patient").addEventListener("click", abrirFormularioPaciente);
 $("context-add-patient").addEventListener("click", alternarFormularioPaciente);
+$("patient-form-cancel").addEventListener("click", () => cerrarFormularioPaciente({ limpiar: true }));
+$("patient-form").addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  cerrarFormularioPaciente({ limpiar: true });
+});
 $("patient-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -990,11 +1015,13 @@ $("patient-form").addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(resultado.mensaje || (response.status === 409 ? "Ya existe un paciente con esos datos." : "No se pudo registrar el paciente. Revise los datos e inténtelo de nuevo."));
     if (!resultado.paciente?.id) throw new Error("No se pudo confirmar el registro. Actualice la lista para verificarlo.");
     form.reset();
-    pacienteActual = String(resultado.paciente.id);
-    busquedaPaciente = "";
+    cerrarFormularioPaciente();
+    const confirmacion = $("patient-register-confirm");
+    if (confirmacion) {
+      confirmacion.textContent = "El paciente se registró correctamente.";
+      confirmacion.hidden = false;
+    }
     await cargar();
-    estado.textContent = `El paciente se registró correctamente. Identificador ${resultado.paciente.id}.`;
-    estado.hidden = false;
   } catch (error) {
     estado.textContent = error instanceof TypeError
       ? "No se pudo conectar. Inténtelo más tarde."
@@ -1057,7 +1084,11 @@ function activarSeccion(id) {
     else enlace.removeAttribute("aria-current");
   });
 }
+document.querySelectorAll("a.nav-item[href='./index.html'], a.brand").forEach((enlace) => {
+  enlace.addEventListener("click", () => cerrarFormularioPaciente());
+});
 enlacesSeccion.forEach((enlace) => enlace.addEventListener("click", (event) => {
+  cerrarFormularioPaciente();
   const destino = document.querySelector(enlace.getAttribute("href"));
   if (!destino) return;
   event.preventDefault();
