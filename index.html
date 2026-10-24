@@ -141,18 +141,27 @@
         </form>
         <p class="informes-status" role="status" :data-fase="fase">{{ mensaje }}</p>
         <div class="informes-resultado" v-if="fase === 'listo' && informe">
-          <div class="informes-grid">
-            <article class="informes-dato"><span>PERIODO</span><strong>{{ informe.desde }} a {{ informe.hasta }}</strong><p>{{ informe.dias }} días</p></article>
-            <article class="informes-dato"><span>MEDICIONES UTILIZADAS</span><strong>{{ informe.lecturasUtilizadas }}</strong></article>
-            <article class="informes-dato"><span>PACIENTE</span><strong>{{ nombreVisible(informe.pacienteId) }}</strong></article>
+          <div v-if="informe.secciones.length" class="informes-secciones">
+            <section v-for="seccion in informe.secciones" :key="seccion.id" class="informes-seccion">
+              <h3>{{ seccion.titulo }}</h3>
+              <p v-if="seccion.cifras" class="informes-cifras">{{ seccion.cifras }}</p>
+              <p v-for="(parrafo, indice) in seccion.parrafos" :key="seccion.id + '-' + indice" class="informes-texto">{{ parrafo }}</p>
+            </section>
           </div>
-          <div class="informes-grid">
-            <article class="informes-dato"><span>FRECUENCIA CARDÍACA</span><p>{{ informe.frecuenciaCardiaca.texto }}</p><p>Tendencia: {{ informe.tendencias.frecuenciaCardiaca }}</p></article>
-            <article class="informes-dato"><span>TEMPERATURA</span><p>{{ informe.temperatura.texto }}</p><p>Tendencia: {{ informe.tendencias.temperatura }}</p></article>
-            <article class="informes-dato"><span>VARIABILIDAD CARDÍACA</span><p>{{ informe.variabilidadCardiaca.texto }}</p><p>Tendencia: {{ informe.tendencias.variabilidadCardiaca }}</p></article>
-          </div>
-          <article class="informes-dato"><span>RESUMEN</span><p class="informes-texto">{{ informe.resumenOrientativo }}</p></article>
-          <article class="informes-dato"><span>LIMITACIONES</span><ul class="informes-lista"><li v-for="(limite, indice) in informe.limitaciones" :key="indice">{{ limite }}</li></ul></article>
+          <template v-else>
+            <div class="informes-grid">
+              <article class="informes-dato"><span>PERIODO</span><strong>{{ informe.desde }} a {{ informe.hasta }}</strong><p>{{ informe.dias }} días</p></article>
+              <article class="informes-dato"><span>MEDICIONES UTILIZADAS</span><strong>{{ informe.lecturasUtilizadas }}</strong></article>
+              <article class="informes-dato"><span>PACIENTE</span><strong>{{ nombreVisible(informe.pacienteId) }}</strong></article>
+            </div>
+            <div class="informes-grid">
+              <article class="informes-dato"><span>FRECUENCIA CARDÍACA</span><p>{{ informe.frecuenciaCardiaca.texto }}</p><p>Tendencia: {{ informe.tendencias.frecuenciaCardiaca }}</p></article>
+              <article class="informes-dato"><span>TEMPERATURA</span><p>{{ informe.temperatura.texto }}</p><p>Tendencia: {{ informe.tendencias.temperatura }}</p></article>
+              <article class="informes-dato"><span>VARIABILIDAD CARDÍACA</span><p>{{ informe.variabilidadCardiaca.texto }}</p><p>Tendencia: {{ informe.tendencias.variabilidadCardiaca }}</p></article>
+            </div>
+            <article class="informes-dato"><span>RESUMEN</span><p class="informes-texto">{{ informe.resumenOrientativo }}</p></article>
+            <article class="informes-dato"><span>LIMITACIONES</span><ul class="informes-lista"><li v-for="(limite, indice) in informe.limitaciones" :key="indice">{{ limite }}</li></ul></article>
+          </template>
           <p class="informes-advertencia">{{ informe.advertencia }}</p>
         </div>
       </div>

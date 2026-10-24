@@ -757,6 +757,37 @@ body.clinical .patient-info,
 body.clinical .patient-info strong,
 body.clinical .patient-info span { min-width: 0; overflow-wrap: anywhere; }
 
+body.clinical .informes-secciones {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+body.clinical .informes-seccion {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4);
+  border: var(--hairline) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--sunken);
+}
+
+body.clinical .informes-seccion h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+body.clinical .informes-cifras {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+body.clinical .informes-seccion .informes-texto { margin: 0; }
+
 body.clinical .informes-intro,
 body.clinical .informes-controls label,
 body.clinical .informes-status,

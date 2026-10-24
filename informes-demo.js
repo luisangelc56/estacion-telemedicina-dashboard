@@ -64,8 +64,23 @@
       limitaciones: limitaciones.length > 0 ? limitaciones : ["No disponible."],
       advertencia: typeof datos.advertencia === "string" && datos.advertencia.trim()
         ? datos.advertencia.trim()
-        : "No disponible."
+        : "No disponible.",
+      lecturasDescartadas: cifra(datos.lecturasDescartadas) ? String(datos.lecturasDescartadas) : "No disponible",
+      origenExplicacion: datos.origenExplicacion === "respaldo" ? "respaldo" : "modelo",
+      secciones: presentarSecciones(datos.secciones)
     };
+  }
+
+  function presentarSecciones(secciones) {
+    if (!Array.isArray(secciones)) return [];
+    return secciones.filter((seccion) => seccion && typeof seccion.titulo === "string" && seccion.titulo.trim()).map((seccion) => ({
+      id: typeof seccion.id === "string" ? seccion.id : seccion.titulo.trim(),
+      titulo: seccion.titulo.trim(),
+      cifras: typeof seccion.cifras === "string" ? seccion.cifras.trim() : "",
+      parrafos: Array.isArray(seccion.parrafos)
+        ? seccion.parrafos.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
+        : []
+    }));
   }
 
   const MENSAJE_SIN_MEDICIONES = "Este paciente todavía no tiene mediciones registradas. Cuando se registren las primeras, podrá generar el informe de seguimiento.";

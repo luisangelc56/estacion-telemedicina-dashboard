@@ -28,6 +28,26 @@ test("presenta las cifras recibidas y la variabilidad ausente", () => {
   assert.equal(vista.resumenOrientativo, informeDemo.resumenOrientativo);
   assert.deepEqual(vista.limitaciones, ["La serie ficticia es breve."]);
   assert.match(vista.advertencia, /orientativo/);
+  assert.deepEqual(vista.secciones, []);
+  assert.equal(vista.origenExplicacion, "modelo");
+});
+
+test("presenta las secciones verificadas sin alterar las cifras", () => {
+  const vista = presentarInforme({
+    ...informeDemo,
+    origenExplicacion: "respaldo",
+    lecturasDescartadas: 2,
+    secciones: [
+      { id: "general", titulo: "Información general", cifras: "", parrafos: ["Mediciones analizadas: 8."] },
+      { id: "frecuenciaCardiaca", titulo: "Frecuencia cardíaca", cifras: "promedio 72 BPM", parrafos: ["No indica si el ritmo es adecuado."] },
+      { titulo: " ", parrafos: ["Se descarta"] }
+    ]
+  });
+  assert.equal(vista.secciones.length, 2);
+  assert.equal(vista.secciones[1].cifras, "promedio 72 BPM");
+  assert.equal(vista.origenExplicacion, "respaldo");
+  assert.equal(vista.lecturasDescartadas, "2");
+  assert.equal(vista.frecuenciaCardiaca.texto.includes("72"), true);
 });
 
 test("no inventa cifras cuando falta una serie", () => {
